@@ -1,162 +1,58 @@
-# Урок 3. Базовые типы и моделирование данных
+## Урок 2. tsconfig.json: настройки TypeScript без головной боли
 
-## Домашнее задание
+## Домашняя работа
 
 ## Контрольные вопросы
 
-1. Чем массив отличается от кортежа?
-2. Почему `discountPercent?: number` при чтении дает `number | undefined`?
-3. В чем разница между `||` и `??` для значения `0`?
-4. Почему литеральное объединение надежнее произвольной строки для статуса?
-5. Защищает ли псевдоним `type ProductId = number` от передачи цены вместо ID?
-6. Что такое сужение типа?
-7. Зачем объектному объединению нужно дискриминирующее поле?
-8. Почему `value!` не делает значение безопасным во время выполнения?
+1. Для чего нужен файл `tsconfig.json`?
+2. Что делает команда `npx tsc`?
+3. В какой папке находится исходный TypeScript?
+4. В какую папку попадает готовый JavaScript?
+5. Почему `strict` правильнее называть набором проверок, а не уровнем?
+6. Какие две проверки из набора `strict` особенно важны для начинающего?
+7. Что проверяет параметр `noUncheckedIndexedAccess`?
+8. Входит ли `noImplicitReturns` в набор `strict`?
+9. Что произойдёт при ошибке типов, если включён `noEmitOnError`?
+10. Чем отличаются команды `tsx`, `tsc` и `node`?
 
-### Практическое задание
-
-### Задание 1. Модель оплаты
-
-Расширьте модель заказа, добавив покупателя и оплату.
-
-**Условия:**
-
-1. Создайте тип `Customer` с полями:
-   - `name: string` — имя покупателя
-   - `email: string` — электронная почта
-   - `phone?: string` — телефон (необязательно)
-
-2. Создайте тип `Payment` — объединение трёх вариантов оплаты:
-   - `card` — оплата картой, хранить `lastFourDigits: string`
-   - `cash` — оплата наличными, хранить `changeFrom: number` (сдача с какой суммы)
-   - `bank-transfer` — банковский перевод, хранить `companyInn: string`
-
-3. Реализуйте функцию `formatPayment(payment: Payment): string`, которая возвращает строковое описание способа оплаты, используя сужение по дискриминирующему полю `method`.
-
-**Заготовка:**
-
-```ts
-type Customer = {
-  // ваш код
-};
-
-type Payment =
-  // ваш код
-  ;
-
-function formatPayment(payment: Payment): string {
-  // ваш код
-}
-```
-
-#### Пример использования:
-
-```ts
-const customer: Customer = {
-  name: "Иван Петров",
-  email: "ivan@example.com",
-  phone: "+7 999 123 45 67",
-};
-
-const payment: Payment = {
-  method: "cash",
-  changeFrom: 5000,
-};
-
-console.log(formatPayment(payment));
-```
-
-### Задание 2. Полная модель корзины
-
-Создайте модель корзины интернет-магазина с типами и функциями для работы с ней.
-
-Требования к модели данных:
-
-1. Товар (Product):
-   id: number — идентификатор
-   name: string — название
-   price: number — цена
-   category: string — категория
-2. Позиция в корзине (CartItem):
-   product: Product — товар
-   quantity: number — количество (минимум 1)
-3. Купон (Coupon):
-   code: string — код купона
-   discountPercent: number — процент скидки (от 0 до 100)
-   Корзина (Cart) должна содержать:
-   items: CartItem[] — список позиций
-   coupon?: Coupon — применённый купон (необязательно)
-4. Функции для реализации:
-
-- addItem(cart: Cart, product: Product, quantity: number): Cart — добавить товар в корзину. Если товар уже есть, увеличить количество.
-- removeItem(cart: Cart, productId: number): Cart — удалить позицию из корзины по id товара.
-- updateQuantity(cart: Cart, productId: number, quantity: number): Cart — изменить количество товара. Если quantity <= 0, удалить позицию.
-- applyCoupon(cart: Cart, coupon: Coupon): Cart — применить купон к корзине.
-- calculateTotal(cart: Cart): number — рассчитать итоговую сумму с учётом купона.
-
-5. Ограничения (runtime-проверки):
-   Количество товара не может быть меньше 1
-   Скидка купона должна быть в диапазоне от 0 до 100
-   Цена товара не может быть отрицательной
-
-#### Заготовка:
+Создайте в `src/index.ts` тип товара:
 
 ```ts
 type Product = {
-  // ваш код
+  id: number;
+  title: string;
+  price: number;
 };
-
-type CartItem = {
-  // ваш код
-};
-
-type Coupon = {
-  // ваш код
-};
-
-type Cart = {
-  // ваш код
-};
-
-function addItem(cart: Cart, product: Product, quantity: number): Cart {
-  // ваш код
-}
-
-function removeItem(cart: Cart, productId: number): Cart {
-  // ваш код
-}
-
-function updateQuantity(cart: Cart, productId: number, quantity: number): Cart {
-  // ваш код
-}
-
-function applyCoupon(cart: Cart, coupon: Coupon): Cart {
-  // ваш код
-}
-
-function calculateTotal(cart: Cart): number {
-  // ваш код
-}
 ```
 
-### Дополнительное задание (для углублённой практики)
-
-Добавьте разные состояния корзины через объединение объектов:
-empty — корзина пуста
-active — корзина с товарами
-checkout — корзина в процессе оформления заказа
-
-У каждого состояния должен быть свой набор полей. Например, у checkout может появиться поле deliveryAddress.
+Создайте товар:
 
 ```ts
-type CartState =
-  | { status: "empty" }
-  | { status: "active"; items: CartItem[]; coupon?: Coupon }
-  | {
-      status: "checkout";
-      items: CartItem[];
-      coupon?: Coupon;
-      deliveryAddress: string;
-    };
+const product: Product = {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+};
 ```
-Реализуйте функцию checkout(cart: CartState): CartState, которая переводит корзину из состояния active в checkout с проверкой, что корзина не пуста.
+
+Добавьте функцию:
+
+```ts
+function formatProduct(product: Product): string {
+  return `${product.title}: ${product.price} ₽`;
+}
+```
+
+Выведите результат:
+
+```ts
+console.log(formatProduct(product));
+```
+
+Затем:
+
+1. Выполните `npx tsc`.
+2. Запустите `node dist/index.js`.
+3. Временно замените цену на строку.
+4. Прочитайте ошибку TypeScript.
+5. Верните числовую цену и убедитесь, что проект снова собирается.
