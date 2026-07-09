@@ -13,5 +13,5 @@
     "exactOptionalPropertyTypes": false,
     "noImplicitReturns": false
   },
-  "include": ["src"]
+  "include": ["src", "src/index6.ts"]
 }

@@ -1,47 +1,29 @@
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-};
+// const amount: number = 1250;
 
-function fail(message: string): never {
-  throw new Error(message);
+// function formatMoney(amount: number, currency = "RUB"): string {
+//   return `${amount.toFixed(2)} ${currency}`;
+// }
+
+// const defaultMoneyLabel: string = formatMoney(amount);
+// const usdMoneyLabel: string = formatMoney(amount, "USD");
+
+// console.log(defaultMoneyLabel);
+// console.log(usdMoneyLabel);
+
+type Currency = "RUB" | "USD" | "EUR";
+
+const strictAmount: number = 1250;
+const strictCurrency: Currency = "EUR";
+
+function formatMoneyStrict(amount: number, currency: Currency = "RUB"): string {
+  return `${amount.toFixed(2)} ${currency}`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+const strictDefaultMoneyLabel: string = formatMoneyStrict(strictAmount);
+const strictMoneyLabel: string = formatMoneyStrict(
+  strictAmount,
+  strictCurrency,
+);
 
-function parseProduct(value: unknown): Product {
-  if (!isRecord(value)) {
-    return fail("Product должен быть объектом");
-  }
-
-  if (typeof value.id !== "number") {
-    return fail("Product.id должен быть числом");
-  }
-
-  if (typeof value.title !== "string") {
-    return fail("Product.title должен быть строкой");
-  }
-
-  if (typeof value.price !== "number") {
-    return fail("Product.price должен быть числом");
-  }
-
-  return {
-    id: value.id,
-    title: value.title,
-    price: value.price,
-  };
-}
-
-function parseJson(text: string): unknown {
-  return JSON.parse(text);
-}
-
-const raw = parseJson('{"id":1,"title":"Клавиатура","price":7500}');
-const product = parseProduct(raw);
-
-console.log(product.title);
-console.log(product.price.toFixed(2));
+console.log(strictDefaultMoneyLabel);
+console.log(strictMoneyLabel);

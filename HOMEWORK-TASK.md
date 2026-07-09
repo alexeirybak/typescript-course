@@ -1,31 +1,16 @@
-# Урок 4. Специальные типы TypeScript
-
 ## Домашнее задание
 
-## Контрольные вопросы
+### Контрольные вопросы
 
-1. Почему `unknown` безопаснее, чем `any`?
-2. Что такое сужение типа?
-3. Почему `typeof value === "object"` без проверки на `null` недостаточно?
-4. Чем `void` отличается от `never`?
-5. Почему `as Product` не преобразует данные в `Product`?
-6. Что даёт `as const`?
-7. Чем `satisfies` отличается от обычной аннотации типа?
+1. Чем необязательный параметр отличается от `string | undefined`?
+2. Когда перегрузка лучше объединения?
+3. Почему callback может объявить меньше параметров, чем ему передают?
+4. Что происходит с псевдопараметром `this` после компиляции?
+5. Как дженерик сохраняет связь между входом и выходом?
 
-## Практическое задание
+### Практическое задание
 
-Получите неизвестный JSON со списком товаров и напишите ручную проверку массива.
-
-Требования:
-
-- входные данные должны начинаться как `unknown`;
-- каждый элемент массива нужно проверить как `Product`;
-- ошибка должна содержать индекс проблемного элемента;
-- нельзя использовать `any`;
-- нельзя использовать двойное утверждение `as unknown as Product`;
-- нельзя использовать non-null assertion `!`.
-
-Заготовка:
+Создайте тип товара:
 
 ```ts
 type Product = {
@@ -33,58 +18,72 @@ type Product = {
   title: string;
   price: number;
 };
-
-function fail(message: string): never {
-  throw new Error(message);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseProduct(value: unknown): Product {
-  if (!isRecord(value)) {
-    return fail("Product должен быть объектом");
-  }
-
-  if (typeof value.id !== "number") {
-    return fail("Product.id должен быть числом");
-  }
-
-  if (typeof value.title !== "string") {
-    return fail("Product.title должен быть строкой");
-  }
-
-  if (typeof value.price !== "number") {
-    return fail("Product.price должен быть числом");
-  }
-
-  return {
-    id: value.id,
-    title: value.title,
-    price: value.price,
-  };
-}
-
-function parseProducts(value: unknown): Product[] {
-  if (!Array.isArray(value)) {
-    return fail("Ожидался массив товаров");
-  }
-
-  return value.map((item, index) => {
-    try {
-      return parseProduct(item);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Неизвестная ошибка";
-      return fail(`Ошибка в товаре с индексом ${index}: ${message}`);
-    }
-  });
-}
-
-const raw: unknown = JSON.parse(
-  '[{"id":1,"title":"Клавиатура","price":7500},{"id":2,"title":"Мышь","price":2500}]'
-);
-
-const products = parseProducts(raw);
-console.log(products);
 ```
+И массив товаров из 3–5 элементов.
+
+#### Задание 1. Необязательный параметр
+
+Напишите функцию
+```ts
+formatProduct(product, currency?)
+```
+которая возвращает строку вида:
+Клавиатура — 4500 RUB
+
+Если валюта не передана, используйте "RUB".
+
+#### Задание 2. Callback-функция
+
+Напишите функцию
+```ts
+filterProducts(products, predicate)
+```
+которая принимает массив товаров и callback.
+
+Проверьте её работу:
+- получите товары дороже 10 000;
+- получите товары дешевле 5 000.
+
+#### Задание 3. Перегрузка
+
+Напишите функцию
+```ts
+findProduct(...)
+```
+Её должно быть можно вызвать двумя способами:
+```ts
+findProduct(2);
+и
+findProduct("Монитор");
+```
+В обоих случаях функция должна вернуть найденный товар или undefined.
+
+#### Задание 4. Параметр-объект
+
+Создайте функцию
+```ts
+createProduct(...)
+```
+которая принимает один объект с полями:
+- title;
+- price.
+
+И возвращает новый объект Product.
+
+Идентификатор можно задать самостоятельно.
+
+#### Задание 5. Дженерик
+
+Напишите универсальную функцию
+```ts
+first<T>(items: T[]): T | undefined
+```
+Проверьте её работу:
+```ts
+first([10, 20, 30]);
+
+first(["Анна", "Борис"]);
+
+first(products);
+```
+Убедитесь, что TypeScript автоматически определяет правильный тип результата.
