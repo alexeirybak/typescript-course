@@ -1,37 +1,37 @@
-// const productPrice: number = 1200;
-// const discountPercent: number = 15;
+type UserProfile = {
+  id: number;
+  name: string;
+  avatarUrl?: string;
+};
 
-// function calculateDiscount(price: number, percent: number): number {
-//   return price * (percent / 100);
-// }
+const user: UserProfile = {
+  id: 1,
+  name: "Анна",
+};
 
-// const discount: number = calculateDiscount(productPrice, discountPercent);
-
-// console.log(discount);
-
-// const price: number = 3500;
-
-// function getPriceLabel(price: number): string {
-//   return `${price.toLocaleString("ru-RU")} руб.`;
-// }
-
-// const priceLabel: string = getPriceLabel(price);
-
-// console.log(priceLabel);
-
-const userName: string = "Анна";
-const userTitle: string = "доктор";
-
-function greet(name: string, title?: string): string {
-  if (title === undefined) {
-    return `Здравствуйте, ${name}`;
-  }
-
-  return `Здравствуйте, ${title} ${name}`;
+function getAvatar(profile: UserProfile): string {
+  return profile.avatarUrl ?? "/images/default-avatar.png";
 }
 
-const greetingWithoutTitle: string = greet(userName);
-const greetingWithTitle: string = greet(userName, userTitle);
+console.log(
+  getAvatar({
+    id: 1,
+    name: "Анна",
+    avatarUrl: "/avatars/ivan.png",
+  }),
+);
 
-console.log(greetingWithoutTitle);
-console.log(greetingWithTitle);
+type OptionalAvatar = {
+  avatarUrl?: string;
+};
+
+type ExplicitAvatar = {
+  avatarUrl: string | undefined;
+};
+
+const first: OptionalAvatar = {};
+
+const second: ExplicitAvatar = {
+  avatarUrl: undefined,
+};
+

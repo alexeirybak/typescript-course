@@ -1,44 +1,33 @@
-// type PriceFormatter = (price: number) => string;
-
-// const productPrice: number = 2500;
-
-// const formatRubles: PriceFormatter = (price) => {
-//   return `${price.toLocaleString("ru-RU")} ₽`;
-// };
-
-// const formattedPrice: string = formatRubles(productPrice);
-
-// console.log(formattedPrice);
-
-// type Formatter = {
-//   (price: number): string;
-//   locale: string;
-// };
-
-// const price: number = 2500;
-
-// const formatter: Formatter = Object.assign((price: number) =>
-//   price.toLocaleString(formatter.locale),
-// );
-
-// console.log(formatter(2500));
-
-// formatter.locale = "en-US";
-
-// const formattedValue: string = formatter(price);
-
-// console.log(formattedValue);
-
-// console.log(formatter.locale);
-
-const locale: string = "ru-RU";
-const price: number = 2500;
-
-const formatPrice = (price: number): string => {
-  return price.toLocaleString(locale);
+type StringDictionary = {
+  [translationCode: string]: string;
 };
 
-const formattedPrice: string = formatPrice(price);
+const translations: StringDictionary = {
+  save: "Сохранить",
+  cancel: "Отмена",
+  close: "Закрыть",
+};
 
-console.log(formattedPrice);
-console.log(locale);
+type UserNamesById = {
+  [id: string]: string;
+};
+
+const users: UserNamesById = {
+  "1": "Анна",
+  "2": "Борис",
+};
+
+type BrokenDictionary = {
+  [key: string]: string | number;
+
+  version: number;
+};
+
+const dictionary: BrokenDictionary = {
+  save: "Сохранить",
+  cancel: "Отмена",
+  close: "Закрыть",
+  version: 2,
+};
+
+const value = dictionary.save;
