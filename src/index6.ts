@@ -1,24 +1,24 @@
-// type Named = {
-//   name: string;
-// };
+type Named = {
+  name: string;
+};
 
-// type Employee = {
-//   id: number;
-//   name: string;
-//   department: string;
-// };
+type Employee = {
+  id: number;
+  name: string;
+  department: string;
+};
 
-// const employee = {
-//   id: 10,
-//   name: "Анна",
-//   department: "Разработка",
-// };
+const employee = {
+  id: 10,
+  name: "Анна",
+  department: "Разработка",
+};
 
-// function printName(value: Named): void {
-//   console.log(value.name);
-// }
+function printName(value: Named): void {
+  console.log(value.name);
+}
 
-// printName(employee);
+printName(employee);
 
 // const named: Named = employee;
 
