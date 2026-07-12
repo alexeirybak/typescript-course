@@ -1,31 +1,35 @@
-// type User = {
-//   readonly id: number;
-//   name: string;
-//   readonly createdAt: Date;
+type User = {
+  id: number;
+  name: string;
+};
+
+type Id = string | number;
+
+type Status = "draft" | "published";
+
+type Coordinates = [number, number];
+
+type Handler = (message: string) => void;
+
+type Identified = {
+  id: number;
+};
+
+type Timestamped = {
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type Article = Identified &
+  Timestamped & {
+    title: string;
+    status: "draft" | "published";
+  };
+
+// type Article = {
+//   id: number;
+//   createdAt: Date;
+//   updatedAt: Date;
+//   title: string;
+//   status: "draft" | "published";
 // };
-
-// const user: User = {
-//   id: 1,
-//   name: "Анна",
-//   createdAt: new Date(),
-// };
-
-// user.name = "Анна Петровна";
-
-// user.id = 2;
-
-// console.log(user.id);
-
-// type Team = {
-//   readonly members: readonly string[];
-// };
-
-// const team: Team = {
-//   members: ["Анна"],
-// };
-
-// team.members = ["Борис"];
-
-// team.members.push("Иван");
-
-// console.log(team);

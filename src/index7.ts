@@ -1,42 +1,22 @@
-type CreateUserInput = {
-  name: string;
-  email: string;
-};
-
-function createUser(input: CreateUserInput): void {
-  console.log(input);
+enum OrderStatus {
+  Draft = 0,
+  Paid = 1,
+  Shipped = 2,
 }
 
-const checkedInput = {
-  name: "Анна",
-  email: "anna@example.com",
-} satisfies CreateUserInput;
+enum UserRole {
+  Admin = "admin",
+  Editor = "editor",
+  Viewer = "viewer",
+}
 
-const input: CreateUserInput = {
-  name: "Анна",
-  email: "anna@example.com",
-};
+// const role = UserRole.Admin;
 
-// createUser({
-//   name: "Анна",
-//   email: "anna@example.com",
-//   role: "admin",
-// });
+// console.log(role);
 
-// const adminInput = {
-//   name: "Анна",
-//   email: "anna@example.com",
-//   role: "admin",
-// };
+function canDelete(role: UserRole): boolean {
+  return role === UserRole.Admin;
+}
 
-// createUser(adminInput);
-
-type ButtonConfig = {
-  variant: "primary" | "secondary";
-  label: string;
-};
-
-const button = {
-  variant: "primary",
-  label: "Сохранить",
-} satisfies ButtonConfig;
+console.log(canDelete(UserRole.Admin));
+console.log(canDelete(UserRole.Editor));

@@ -1,67 +1,34 @@
-type Customer = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  email: string;
-};
+// enum UserRole {
+//   Admin = "admin",
+//   Editor = "editor",
+//   Viewer = "viewer",
+// }
 
-type UpdateCustomerCommand = {
-  id: number;
-  name?: string;
-  email?: string;
-};
+// type UserRole = "admin" | "editor" | "viewer";
 
-function updateCustomer(
-  customer: Customer,
-  command: UpdateCustomerCommand,
-): Customer {
-  if (customer.id !== command.id) {
-    throw new Error("Команда относится к другому клиенту");
-  }
-
-  return {
-    ...customer,
-    name: command.name ?? customer.name,
-    email: command.email ?? customer.email,
-  };
+function canDelete(role: UserRole): boolean {
+  return role === "admin";
 }
 
-const customer: Customer = {
-  id: 1,
-  createdAt: new Date(),
-  name: "Анна",
-  email: "anna@example.com",
-};
+console.log(canDelete("admin"));
+console.log(canDelete("editor"));
 
-const command: UpdateCustomerCommand = {
-  id: 2,
-  name: "Анна Петрова",
-};
+// const role1: UserRole = "admin";
+const role2: UserRole = "editor";
 
-updateCustomer(customer, {
-  id: 1,
-  name: "Анна Петрова",
-});
+const UserRole = {
+  Admin: "admin",
+  Editor: "editor",
+  Viewer: "viewer",
+} as const;
 
-updateCustomer(customer, {
-  id: 1,
-  email: "anna.petrova@example.com",
-});
+type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
-//type UpdateCustomerCommand = Partial<Customer>;
+// type UserRole = "admin" | "editor" | "viewer";
 
-// const renameCustomerCommand: UpdateCustomerCommand = {
-//   id: 1,
-//   name: "Анна Петрова",
-// };
+function canEdit(role: UserRole): boolean {
+  return role === UserRole.Admin || role === UserRole.Editor;
+}
 
-// const changeEmailCommand: UpdateCustomerCommand = {
-//   id: 1,
-//   email: "anna.petrova@example.com",
-// };
-
-// const updateCustomerCommand: UpdateCustomerCommand = {
-//   id: 1,
-//   name: "Анна Петрова",
-//   email: "anna.petrova@example.com",
-// };
+console.log(canEdit(UserRole.Admin));
+console.log(canEdit(UserRole.Viewer));

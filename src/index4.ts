@@ -1,33 +1,29 @@
-type StringDictionary = {
-  [translationCode: string]: string;
-};
+interface WindowSettings {
+  theme: "light" | "dark";
+}
 
-const translations: StringDictionary = {
-  save: "Сохранить",
-  cancel: "Отмена",
-  close: "Закрыть",
-};
+interface WindowSettings {
+  locale: "ru" | "en";
+}
 
-type UserNamesById = {
-  [id: string]: string;
-};
+// interface WindowSettings {
+//   theme: "light" | "dark";
+//   locale: "ru" | "en";
+// }
 
-const users: UserNamesById = {
-  "1": "Анна",
-  "2": "Борис",
-};
+// const settings: WindowSettings = {
+//   theme: "dark",
+//   locale: "ru",
+// };
 
-type BrokenDictionary = {
-  [key: string]: string | number;
+// console.log(settings);
 
-  version: number;
-};
+window.appVersion = "1.0.0";
 
-const dictionary: BrokenDictionary = {
-  save: "Сохранить",
-  cancel: "Отмена",
-  close: "Закрыть",
-  version: 2,
-};
+declare global {
+  interface Window {
+    appVersion: string;
+  }
+}
 
-const value = dictionary.save;
+export {};
