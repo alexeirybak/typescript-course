@@ -1,37 +1,15 @@
-type UserProfile = {
-  id: number;
-  name: string;
-  avatarUrl?: string;
+type User = {
+  readonly id: number;
+  name?: string;
 };
 
-const user: UserProfile = {
+const user: User = {
   id: 1,
   name: "Анна",
 };
 
-function getAvatar(profile: UserProfile): string {
-  return profile.avatarUrl ?? "/images/default-avatar.png";
+function printUser(user: User): void {
+  console.log(`${user.id}: ${user.name}`);
 }
 
-console.log(
-  getAvatar({
-    id: 1,
-    name: "Анна",
-    avatarUrl: "/avatars/ivan.png",
-  }),
-);
-
-type OptionalAvatar = {
-  avatarUrl?: string;
-};
-
-type ExplicitAvatar = {
-  avatarUrl: string | undefined;
-};
-
-const first: OptionalAvatar = {};
-
-const second: ExplicitAvatar = {
-  avatarUrl: undefined,
-};
-
+printUser(user);

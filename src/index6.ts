@@ -1,29 +1,43 @@
-type Named = {
-  name: string;
-};
+// enum OrderStatus {
+//   Draft = 0,
+//   Paid = 1,
+//   Shipped = 2,
+// }
 
-type Employee = {
-  id: number;
-  name: string;
-  department: string;
-};
+// const status = OrderStatus.Shipped;
 
-const employee = {
-  id: 10,
-  name: "Анна",
-  department: "Разработка",
-};
+// console.log(status);
 
-function printName(value: Named): void {
-  console.log(value.name);
+enum HttpStatus {
+  Ok = 200,
+  NotFound = 404,
+  ServerError = 500,
 }
 
-printName(employee);
+let status;
 
-// const named: Named = employee;
+// if (status === 200) {
+//   console.log("Запрос выполнен успешно");
+// }
 
-// const namedOnly: Named = {
-//   name: "Анна",
-// };
+// if (status === 404) {
+//   console.log("Страница не найдена");
+// }
 
-// const employee2: Employee = namedOnly;
+// if (status === 500) {
+//   console.log("Внутренняя ошибка сервера");
+// }
+
+// if (status === HttpStatus.Ok) {
+//   console.log("Запрос выполнен успешно");
+// }
+
+// if (status === HttpStatus.NotFound) {
+//   console.log("Страница не найдена");
+// }
+
+// if (status === HttpStatus.ServerError) {
+//   console.log("Внутренняя ошибка сервера");
+// }
+
+console.log(HttpStatus);

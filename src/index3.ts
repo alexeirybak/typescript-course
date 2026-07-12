@@ -1,45 +1,35 @@
-type Cart = {
-  items: string[];
-  add(item: string): void;
-  remove(item: string): boolean;
+interface Product {
+  id: number;
+  title: string;
+  price: number;
+}
+
+interface Entity {
+  id: number;
+}
+
+interface Product extends Entity {
+  title: string;
+  price: number;
+}
+
+// interface DigitalProduct extends Product {
+//   downloadUrl: string;
+//   fileSize: number;
+// }
+
+// interface Named {
+//   name: string;
+// }
+
+// interface Broken extends Named {
+//   name: number;
+// }
+
+type WithSlug = {
+  slug: string;
 };
 
-const cart: Cart = {
-  items: [],
-
-  add(item) {
-    this.items.push(item);
-  },
-
-  remove(item) {
-    const index = this.items.indexOf(item);
-
-    if (index === -1) {
-      return false;
-    }
-
-    this.items.splice(index, 1);
-    return true;
-  },
-};
-
-cart.add("Книга");
-const removed = cart.remove("Книга");
-const removedAgain = cart.remove("Книга");
-
-console.log(removed);
-console.log(removedAgain);
-
-// onClick: (event: MouseEvent) => void;
-
-// type ButtonProps = {
-//   label: string;
-//   onClick: () => void;
-// };
-
-
-// type Cart = {
-//   items: string[];
-//   add(item: string): void;
-//   remove(item: string): boolean;
-// };
+interface Category extends WithSlug {
+  title: string;
+}

@@ -2,1038 +2,368 @@
 
 ## Контрольные вопросы
 
-### 1. Замораживает ли `readonly` объект во время выполнения?
+### 1. В чем основное отличие `type` от `interface`?
 
-Нет.
+`interface` предназначен для описания объектных контрактов и поддерживает расширение (`extends`) и слияние объявлений (declaration merging).
 
-`readonly` работает только во время проверки TypeScript-кода. Он запрещает изменять свойство через соответствующий тип, но после компиляции в JavaScript модификатор `readonly` исчезает.
+`type` — это псевдоним типа. С его помощью можно дать имя практически любому типу: объекту, объединению, пересечению, функции, кортежу и т.д.
+
+Для большинства обычных объектов можно использовать оба варианта.
+
+---
+
+### 2. Какие типы можно описать через `type`, но нельзя напрямую через `interface`?
+
+Через `type` можно описывать:
+
+* объединения (`union`);
+* пересечения (`intersection`);
+* кортежи (`tuple`);
+* типы функций;
+* литеральные типы;
+* псевдонимы примитивных типов.
+
+Например:
 
 ```ts
-type User = {
-  readonly id: number;
-  name: string;
-};
+type Id = string | number;
 
-const user: User = {
-  id: 1,
-  name: "Анна",
-};
+type Point = [number, number];
 
-// Ошибка TypeScript
-// user.id = 2;
-```
+type Handler = (message: string) => void;
 
-Для настоящей заморозки объекта во время выполнения используется `Object.freeze()`:
-
-```ts
-const frozenUser = Object.freeze({
-  id: 1,
-  name: "Анна",
-});
+type Status = "draft" | "published";
 ```
 
 ---
 
-### 2. Почему readonly-свойство с обычным массивом всё ещё позволяет `push`?
+### 3. Что такое declaration merging и для чего оно используется?
 
-В типе:
-
-```ts
-type Team = {
-  readonly members: string[];
-};
-```
-
-`readonly` запрещает заменить само свойство `members`:
+Declaration merging — это автоматическое объединение нескольких интерфейсов с одинаковым именем.
 
 ```ts
-const team: Team = {
-  members: ["Анна"],
-};
-
-// Ошибка TypeScript
-// team.members = ["Борис"];
-```
-
-Но массив имеет обычный изменяемый тип `string[]`, поэтому его содержимое менять можно:
-
-```ts
-team.members.push("Борис");
-```
-
-Чтобы запретить изменение массива, нужно добавить `readonly` самому массиву:
-
-```ts
-type SafeTeam = {
-  readonly members: readonly string[];
-};
-
-const safeTeam: SafeTeam = {
-  members: ["Анна"],
-};
-
-// Ошибка TypeScript
-// safeTeam.members.push("Борис");
-```
-
----
-
-### 3. В чём идея структурной типизации?
-
-TypeScript проверяет не название типа и не способ создания объекта, а его структуру.
-
-Если объект содержит все свойства, которые требует тип, он считается совместимым с этим типом.
-
-```ts
-type Named = {
-  name: string;
-};
-
-const employee = {
-  id: 1,
-  name: "Анна",
-  department: "Разработка",
-};
-
-function printName(value: Named): void {
-  console.log(value.name);
+interface Settings {
+  theme: "light" | "dark";
 }
 
-printName(employee);
-```
-
-Объект `employee` подходит типу `Named`, потому что у него есть обязательное свойство:
-
-```ts
-name: string
-```
-
-Дополнительные свойства `id` и `department` не мешают.
-
----
-
-### 4. Почему литерал с лишним полем может вызвать ошибку, а переменная — нет?
-
-Свежий объектный литерал TypeScript проверяет строже.
-
-```ts
-type CreateUserInput = {
-  name: string;
-  email: string;
-};
-
-function createUser(input: CreateUserInput): void {
-  console.log(input);
+interface Settings {
+  locale: "ru" | "en";
 }
 ```
 
-При прямой передаче литерала с лишним свойством возникнет ошибка:
+TypeScript объединит их в один интерфейс.
 
-```ts
-createUser({
-  name: "Анна",
-  email: "anna@example.com",
-
-  // Ошибка: свойство role не описано в CreateUserInput
-  // role: "admin",
-});
-```
-
-Но объект можно сначала сохранить в переменную:
-
-```ts
-const adminInput = {
-  name: "Анна",
-  email: "anna@example.com",
-  role: "admin",
-};
-
-createUser(adminInput);
-```
-
-Во втором случае TypeScript применяет обычную структурную совместимость. У объекта есть все обязательные поля `CreateUserInput`, поэтому дополнительное поле не мешает.
+Эта возможность чаще всего используется при расширении типов библиотек и встроенных объектов JavaScript.
 
 ---
 
-### 5. Почему `Partial<Customer>` не всегда подходит для команды обновления?
+### 4. Что делает ключевое слово `implements`?
 
-`Partial<Customer>` делает необязательными все свойства клиента:
+`implements` проверяет, что класс соответствует указанному контракту.
 
 ```ts
-type Customer = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  email: string;
-};
+interface Publishable {
+  publish(): void;
+}
 
-type PartialCustomer = Partial<Customer>;
+class Article implements Publishable {
+  publish(): void {
+    console.log("Статья опубликована");
+  }
+}
 ```
 
-Получается примерно такой тип:
+После компиляции `implements` исчезает и никак не влияет на JavaScript-код.
+
+---
+
+### 5. Чем обычный `enum` отличается от `const enum`?
+
+Обычный `enum` существует и во время компиляции, и во время выполнения программы.
 
 ```ts
-type PartialCustomer = {
-  readonly id?: number;
-  readonly createdAt?: Date;
-  name?: string;
-  email?: string;
-};
+enum Direction {
+  Up = "UP",
+  Down = "DOWN",
+}
 ```
 
-Но команда обновления не должна разрешать изменение `createdAt`. Кроме того, идентификатор клиента обычно должен быть обязательным.
-
-Поэтому лучше создать отдельный тип:
+`const enum` используется только во время компиляции.
 
 ```ts
-type UpdateCustomerCommand = {
+const enum Direction {
+  Up = "UP",
+  Down = "DOWN",
+}
+```
+
+TypeScript подставляет значения прямо в код и не создает объект перечисления.
+
+---
+
+### 6. В чем преимущества литерального объединения перед строковым `enum`?
+
+Литеральное объединение:
+
+* не создает дополнительный JavaScript-код;
+* использует обычные строки;
+* хорошо подходит для работы с API;
+* требует меньше кода.
+
+```ts
+type UserRole = "admin" | "editor" | "viewer";
+```
+
+---
+
+### 7. Как получить union-тип из объекта, объявленного с `as const`?
+
+```ts
+const DocumentStatus = {
+  Draft: "draft",
+  Published: "published",
+  Archived: "archived",
+} as const;
+
+type DocumentStatus =
+  (typeof DocumentStatus)[keyof typeof DocumentStatus];
+```
+
+Получится:
+
+```ts
+type DocumentStatus =
+  | "draft"
+  | "published"
+  | "archived";
+```
+
+---
+
+# Практическое задание
+
+## Задание 1–4
+
+```ts
+const DocumentStatus = {
+  Draft: "draft",
+  Published: "published",
+  Archived: "archived",
+} as const;
+
+type DocumentStatus =
+  (typeof DocumentStatus)[keyof typeof DocumentStatus];
+
+interface DocumentBase {
   id: number;
-  name?: string;
-  email?: string;
-};
-```
+  author: string;
+  createdAt: Date;
+  status: DocumentStatus;
+}
 
-Он точнее описывает бизнес-смысл операции.
-
----
-
-# Практическое задание 1. Система управления проектами
-
-## Модель участника
-
-```ts
-type ParticipantRole = "owner" | "developer" | "designer" | "tester";
-
-type Participant = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  email: string;
-  role: ParticipantRole;
-};
-```
-
-## Модель задачи
-
-```ts
-type TaskStatus = "todo" | "inProgress" | "done";
-type TaskPriority = "low" | "medium" | "high";
-
-type Task = {
-  readonly id: number;
-  readonly createdAt: Date;
+type Article = DocumentBase & {
+  type: "article";
   title: string;
-  description?: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  assigneeId?: number;
-};
-```
-
-## Пользовательские настройки
-
-```ts
-type ProjectSettingName =
-  | "emailNotifications"
-  | "showCompletedTasks"
-  | "compactMode";
-
-type UserSettings = Record<ProjectSettingName, boolean>;
-```
-
-Такой тип требует точный набор ключей:
-
-```ts
-const userSettings: UserSettings = {
-  emailNotifications: true,
-  showCompletedTasks: false,
-  compactMode: true,
-};
-```
-
-## Модель проекта
-
-```ts
-type Project = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  description?: string;
-  participants: readonly Participant[];
-  tasks: readonly Task[];
-  settings: UserSettings;
-};
-```
-
-## Команда создания проекта
-
-При создании проекта идентификатор и дата могут формироваться системой, поэтому их нет в команде:
-
-```ts
-type CreateProjectCommand = {
-  name: string;
-  description?: string;
-  participants?: readonly Participant[];
-  settings: UserSettings;
-};
-```
-
-Функция создания проекта:
-
-```ts
-function createProject(
-  id: number,
-  command: CreateProjectCommand,
-): Project {
-  return {
-    id,
-    createdAt: new Date(),
-    name: command.name,
-    description: command.description,
-    participants: command.participants ?? [],
-    tasks: [],
-    settings: command.settings,
-  };
-}
-```
-
-## Команда обновления проекта
-
-```ts
-type UpdateProjectCommand = {
-  id: number;
-  name?: string;
-  description?: string;
-  participants?: readonly Participant[];
-  tasks?: readonly Task[];
-  settings?: Partial<UserSettings>;
-};
-```
-
-Здесь `Partial<UserSettings>` допустим, потому что при обновлении настроек можно передать только часть известного набора настроек.
-
-## Чистая функция обновления проекта
-
-```ts
-function updateProject(
-  project: Project,
-  command: UpdateProjectCommand,
-): Project {
-  if (project.id !== command.id) {
-    throw new Error("Команда относится к другому проекту");
-  }
-
-  return {
-    ...project,
-    name: command.name ?? project.name,
-    description: command.description ?? project.description,
-    participants: command.participants ?? project.participants,
-    tasks: command.tasks ?? project.tasks,
-    settings: {
-      ...project.settings,
-      ...command.settings,
-    },
-  };
-}
-```
-
-Функция не изменяет исходный объект. Она создает и возвращает новый проект.
-
-## Пример использования
-
-```ts
-const participant: Participant = {
-  id: 1,
-  createdAt: new Date(),
-  name: "Анна",
-  email: "anna@example.com",
-  role: "developer",
+  content: string;
 };
 
-const project = createProject(100, {
-  name: "Интернет-магазин",
-  description: "Разработка нового магазина",
-  participants: [participant],
-  settings: {
-    emailNotifications: true,
-    showCompletedTasks: false,
-    compactMode: false,
-  },
-});
-
-const updatedProject = updateProject(project, {
-  id: 100,
-  name: "Интернет-магазин 2.0",
-  settings: {
-    compactMode: true,
-  },
-});
-
-console.log(project.name);
-// Интернет-магазин
-
-console.log(updatedProject.name);
-// Интернет-магазин 2.0
-
-console.log(project.settings.compactMode);
-// false
-
-console.log(updatedProject.settings.compactMode);
-// true
-```
-
-Исходный объект `project` не изменился.
-
----
-
-# Практическое задание 2. Мини-CRM
-
-## Адрес клиента
-
-```ts
-type Address = {
-  country: string;
-  city: string;
-  street: string;
-  building: string;
-  apartment?: string;
-};
-```
-
-## Дополнительные поля
-
-Дополнительные поля заранее неизвестны, поэтому используется индексная сигнатура со значением `unknown`:
-
-```ts
-type CustomerCustomFields = {
-  [key: string]: unknown;
-};
-```
-
-Использование `unknown` безопаснее, чем `any`. Перед работой со значением его тип придется проверить.
-
-## Модель клиента
-
-```ts
-type Customer = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  email: string;
-  phone?: string;
-  addresses: readonly Address[];
-  customFields: CustomerCustomFields;
-};
-```
-
-## Команда создания клиента
-
-```ts
-type CreateCustomerCommand = {
-  name: string;
-  email: string;
-  phone?: string;
-  addresses?: readonly Address[];
-  customFields?: CustomerCustomFields;
-};
-```
-
-Поля `id` и `createdAt` не передаются, потому что их создает система.
-
-## Функция создания клиента
-
-```ts
-function createCustomer(
-  id: number,
-  command: CreateCustomerCommand,
-): Customer {
-  return {
-    id,
-    createdAt: new Date(),
-    name: command.name,
-    email: command.email,
-    phone: command.phone,
-    addresses: command.addresses ?? [],
-    customFields: command.customFields ?? {},
-  };
-}
-```
-
-## Команда обновления клиента
-
-```ts
-type UpdateCustomerCommand = {
-  id: number;
-  name?: string;
-  email?: string;
-  phone?: string;
-  addresses?: readonly Address[];
-  customFields?: CustomerCustomFields;
-};
-```
-
-В команду не включено поле `createdAt`, потому что дату создания изменять нельзя.
-
-## Чистая функция обновления клиента
-
-```ts
-function updateCustomer(
-  customer: Customer,
-  command: UpdateCustomerCommand,
-): Customer {
-  if (customer.id !== command.id) {
-    throw new Error("Команда относится к другому клиенту");
-  }
-
-  return {
-    ...customer,
-    name: command.name ?? customer.name,
-    email: command.email ?? customer.email,
-    phone: command.phone ?? customer.phone,
-    addresses: command.addresses ?? customer.addresses,
-    customFields: command.customFields
-      ? {
-          ...customer.customFields,
-          ...command.customFields,
-        }
-      : customer.customFields,
-  };
-}
-```
-
-## Пример использования
-
-```ts
-const customer = createCustomer(1, {
-  name: "Анна Иванова",
-  email: "anna@example.com",
-  phone: "+7 900 000-00-00",
-  addresses: [
-    {
-      country: "Россия",
-      city: "Москва",
-      street: "Тверская",
-      building: "1",
-    },
-  ],
-  customFields: {
-    source: "Реклама",
-    discount: 10,
-    vip: false,
-  },
-});
-```
-
-Обновим email и дополнительное поле:
-
-```ts
-const updatedCustomer = updateCustomer(customer, {
-  id: 1,
-  email: "anna.ivanova@example.com",
-  customFields: {
-    discount: 15,
-    manager: "Борис",
-  },
-});
-```
-
-Проверим результат:
-
-```ts
-console.log(customer.email);
-// anna@example.com
-
-console.log(updatedCustomer.email);
-// anna.ivanova@example.com
-
-console.log(customer.customFields.discount);
-// 10
-
-console.log(updatedCustomer.customFields.discount);
-// 15
-```
-
-Исходный объект `customer` не изменился.
-
-## Работа со значениями `unknown`
-
-```ts
-const discount = updatedCustomer.customFields.discount;
-
-if (typeof discount === "number") {
-  console.log(discount * 2);
-}
-```
-
-Без проверки TypeScript не позволит использовать значение `unknown` как число.
-
----
-
-# Практическое задание 3. Настройки уведомлений
-
-## Точный набор ключей
-
-```ts
-type NotificationType =
-  | "email"
-  | "sms"
-  | "push"
-  | "telegram";
-```
-
-## Тип настроек
-
-```ts
-type NotificationSettings = Record<NotificationType, boolean>;
-```
-
-Он эквивалентен следующей структуре:
-
-```ts
-type NotificationSettings = {
-  email: boolean;
-  sms: boolean;
-  push: boolean;
-  telegram: boolean;
-};
-```
-
-## Корректный объект
-
-```ts
-const notificationSettings: NotificationSettings = {
-  email: true,
-  sms: false,
-  push: true,
-  telegram: false,
-};
-```
-
-## Ошибка при отсутствии ключа
-
-```ts
-const incompleteSettings: NotificationSettings = {
-  email: true,
-  sms: false,
-  push: true,
-
-  // Ошибка: отсутствует telegram
-};
-```
-
-Этот пример нужно оставить закомментированным, чтобы проект компилировался:
-
-```ts
-/*
-const incompleteSettings: NotificationSettings = {
-  email: true,
-  sms: false,
-  push: true,
-};
-*/
-```
-
-## Ошибка при добавлении неизвестного ключа
-
-```ts
-const incorrectSettings: NotificationSettings = {
-  email: true,
-  sms: false,
-  push: true,
-  telegram: false,
-
-  // Ошибка: ключ whatsapp не входит в NotificationType
-  // whatsapp: true,
-};
-```
-
-`Record` требует все ключи из union-типа и не разрешает неизвестные свойства в свежем объектном литерале.
-
-## Функция обновления настроек
-
-```ts
-function updateNotificationSettings(
-  settings: NotificationSettings,
-  changes: Partial<NotificationSettings>,
-): NotificationSettings {
-  return {
-    ...settings,
-    ...changes,
-  };
-}
-```
-
-Пример:
-
-```ts
-const updatedNotificationSettings =
-  updateNotificationSettings(notificationSettings, {
-    sms: true,
-    telegram: true,
-  });
-
-console.log(updatedNotificationSettings);
-```
-
-Результат:
-
-```ts
-{
-  email: true,
-  sms: true,
-  push: true,
-  telegram: true,
-}
-```
-
----
-
-# Дополнительное задание. Структурная типизация
-
-Создадим тип входных данных:
-
-```ts
-type CreateEmployeeInput = {
-  name: string;
-  email: string;
-};
-```
-
-Функция:
-
-```ts
-function createEmployee(input: CreateEmployeeInput): void {
-  console.log(`Создан сотрудник: ${input.name}`);
-}
-```
-
-## Передача объектного литерала
-
-```ts
-createEmployee({
-  name: "Анна",
-  email: "anna@example.com",
-
-  // Ошибка excess property checking
-  // department: "Разработка",
-});
-```
-
-Свежий объектный литерал проверяется строго, поэтому неизвестное свойство `department` вызывает ошибку.
-
-## Передача переменной
-
-```ts
-const employeeInput = {
-  name: "Анна",
-  email: "anna@example.com",
-  department: "Разработка",
-};
-
-createEmployee(employeeInput);
-```
-
-Теперь ошибки нет.
-
-TypeScript проверяет, есть ли у объекта все обязательные свойства типа `CreateEmployeeInput`:
-
-```ts
-name: string;
-email: string;
-```
-
-Они есть, поэтому дополнительное поле `department` не мешает.
-
-## Использование `satisfies`
-
-```ts
-const checkedEmployeeInput = {
-  name: "Борис",
-  email: "boris@example.com",
-} satisfies CreateEmployeeInput;
-```
-
-Оператор `satisfies` проверяет объект на соответствие контракту, но сохраняет тип, выведенный из самого объекта.
-
-При лишнем свойстве свежий литерал по-прежнему вызовет ошибку:
-
-```ts
-const incorrectEmployeeInput = {
-  name: "Борис",
-  email: "boris@example.com",
-
-  // Ошибка: неизвестное свойство
-  // department: "Тестирование",
-} satisfies CreateEmployeeInput;
-```
-
----
-
-# Полный код
-
-```ts
-type ParticipantRole =
-  | "owner"
-  | "developer"
-  | "designer"
-  | "tester";
-
-type Participant = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  email: string;
-  role: ParticipantRole;
-};
-
-type TaskStatus = "todo" | "inProgress" | "done";
-type TaskPriority = "low" | "medium" | "high";
-
-type Task = {
-  readonly id: number;
-  readonly createdAt: Date;
+type Video = DocumentBase & {
+  type: "video";
   title: string;
-  description?: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  assigneeId?: number;
+  duration: number;
+  videoUrl: string;
 };
 
-type ProjectSettingName =
-  | "emailNotifications"
-  | "showCompletedTasks"
-  | "compactMode";
-
-type UserSettings = Record<ProjectSettingName, boolean>;
-
-type Project = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  description?: string;
-  participants: readonly Participant[];
-  tasks: readonly Task[];
-  settings: UserSettings;
+type Podcast = DocumentBase & {
+  type: "podcast";
+  title: string;
+  duration: number;
+  audioUrl: string;
 };
 
-type CreateProjectCommand = {
-  name: string;
-  description?: string;
-  participants?: readonly Participant[];
-  settings: UserSettings;
-};
+type Document = Article | Video | Podcast;
 
-type UpdateProjectCommand = {
-  id: number;
-  name?: string;
-  description?: string;
-  participants?: readonly Participant[];
-  tasks?: readonly Task[];
-  settings?: Partial<UserSettings>;
-};
-
-function createProject(
-  id: number,
-  command: CreateProjectCommand,
-): Project {
-  return {
-    id,
-    createdAt: new Date(),
-    name: command.name,
-    description: command.description,
-    participants: command.participants ?? [],
-    tasks: [],
-    settings: command.settings,
-  };
+interface Publishable {
+  publish(): void;
 }
 
-function updateProject(
-  project: Project,
-  command: UpdateProjectCommand,
-): Project {
-  if (project.id !== command.id) {
-    throw new Error("Команда относится к другому проекту");
+class ArticleDocument implements Publishable {
+  constructor(
+    public readonly id: number,
+    public author: string,
+    public readonly createdAt: Date,
+    public status: DocumentStatus,
+    public title: string,
+    public content: string,
+  ) {}
+
+  publish(): void {
+    this.status = DocumentStatus.Published;
+    console.log(`Статья «${this.title}» опубликована.`);
   }
-
-  return {
-    ...project,
-    name: command.name ?? project.name,
-    description: command.description ?? project.description,
-    participants: command.participants ?? project.participants,
-    tasks: command.tasks ?? project.tasks,
-    settings: {
-      ...project.settings,
-      ...command.settings,
-    },
-  };
 }
 
-type Address = {
-  country: string;
-  city: string;
-  street: string;
-  building: string;
-  apartment?: string;
-};
+function getDocumentInfo(document: Document): string {
+  switch (document.type) {
+    case "article":
+      return `Статья: ${document.title}
+Автор: ${document.author}
+Статус: ${document.status}`;
 
-type CustomerCustomFields = {
-  [key: string]: unknown;
-};
+    case "video":
+      return `Видео: ${document.title}
+Автор: ${document.author}
+Длительность: ${document.duration} мин.
+Статус: ${document.status}`;
 
-type Customer = {
-  readonly id: number;
-  readonly createdAt: Date;
-  name: string;
-  email: string;
-  phone?: string;
-  addresses: readonly Address[];
-  customFields: CustomerCustomFields;
-};
-
-type CreateCustomerCommand = {
-  name: string;
-  email: string;
-  phone?: string;
-  addresses?: readonly Address[];
-  customFields?: CustomerCustomFields;
-};
-
-type UpdateCustomerCommand = {
-  id: number;
-  name?: string;
-  email?: string;
-  phone?: string;
-  addresses?: readonly Address[];
-  customFields?: CustomerCustomFields;
-};
-
-function createCustomer(
-  id: number,
-  command: CreateCustomerCommand,
-): Customer {
-  return {
-    id,
-    createdAt: new Date(),
-    name: command.name,
-    email: command.email,
-    phone: command.phone,
-    addresses: command.addresses ?? [],
-    customFields: command.customFields ?? {},
-  };
-}
-
-function updateCustomer(
-  customer: Customer,
-  command: UpdateCustomerCommand,
-): Customer {
-  if (customer.id !== command.id) {
-    throw new Error("Команда относится к другому клиенту");
+    case "podcast":
+      return `Подкаст: ${document.title}
+Автор: ${document.author}
+Длительность: ${document.duration} мин.
+Статус: ${document.status}`;
   }
-
-  return {
-    ...customer,
-    name: command.name ?? customer.name,
-    email: command.email ?? customer.email,
-    phone: command.phone ?? customer.phone,
-    addresses: command.addresses ?? customer.addresses,
-    customFields: command.customFields
-      ? {
-          ...customer.customFields,
-          ...command.customFields,
-        }
-      : customer.customFields,
-  };
 }
+```
 
-type NotificationType =
-  | "email"
-  | "sms"
-  | "push"
-  | "telegram";
+### Проверка
 
-type NotificationSettings = Record<
-  NotificationType,
-  boolean
->;
-
-function updateNotificationSettings(
-  settings: NotificationSettings,
-  changes: Partial<NotificationSettings>,
-): NotificationSettings {
-  return {
-    ...settings,
-    ...changes,
-  };
-}
-
-const participant: Participant = {
+```ts
+const article: Article = {
   id: 1,
+  author: "Анна",
   createdAt: new Date(),
-  name: "Анна",
-  email: "anna@example.com",
-  role: "developer",
+  status: DocumentStatus.Draft,
+  type: "article",
+  title: "Основы TypeScript",
+  content: "Содержимое статьи",
 };
 
-const project = createProject(100, {
-  name: "Интернет-магазин",
-  participants: [participant],
-  settings: {
-    emailNotifications: true,
-    showCompletedTasks: false,
-    compactMode: false,
-  },
-});
-
-const updatedProject = updateProject(project, {
-  id: 100,
-  name: "Интернет-магазин 2.0",
-  settings: {
-    compactMode: true,
-  },
-});
-
-const customer = createCustomer(1, {
-  name: "Анна Иванова",
-  email: "anna@example.com",
-  addresses: [
-    {
-      country: "Россия",
-      city: "Москва",
-      street: "Тверская",
-      building: "1",
-    },
-  ],
-  customFields: {
-    source: "Реклама",
-    discount: 10,
-  },
-});
-
-const updatedCustomer = updateCustomer(customer, {
-  id: 1,
-  email: "anna.ivanova@example.com",
-  customFields: {
-    discount: 15,
-  },
-});
-
-const notificationSettings: NotificationSettings = {
-  email: true,
-  sms: false,
-  push: true,
-  telegram: false,
+const video: Video = {
+  id: 2,
+  author: "Иван",
+  createdAt: new Date(),
+  status: DocumentStatus.Published,
+  type: "video",
+  title: "Объектные типы",
+  duration: 25,
+  videoUrl: "https://example.com/video",
 };
 
-const updatedSettings = updateNotificationSettings(
-  notificationSettings,
-  {
-    sms: true,
-  },
+const podcast: Podcast = {
+  id: 3,
+  author: "Мария",
+  createdAt: new Date(),
+  status: DocumentStatus.Archived,
+  type: "podcast",
+  title: "Разговор о TypeScript",
+  duration: 45,
+  audioUrl: "https://example.com/podcast",
+};
+
+console.log(getDocumentInfo(article));
+console.log(getDocumentInfo(video));
+console.log(getDocumentInfo(podcast));
+
+const articleDocument = new ArticleDocument(
+  4,
+  "Алексей",
+  new Date(),
+  DocumentStatus.Draft,
+  "TypeScript на практике",
+  "Текст статьи",
 );
 
-console.log(project);
-console.log(updatedProject);
-console.log(customer);
-console.log(updatedCustomer);
-console.log(updatedSettings);
+articleDocument.publish();
+
+console.log(articleDocument.status);
 ```
+
+---
+
+# Дополнительное задание ⭐
+
+## Вариант 1. Строковый `enum`
+
+```ts
+enum UserRoleEnum {
+  Admin = "admin",
+  Editor = "editor",
+  Viewer = "viewer",
+}
+
+function canDelete(role: UserRoleEnum): boolean {
+  return role === UserRoleEnum.Admin;
+}
+```
+
+---
+
+## Вариант 2. Литеральное объединение
+
+```ts
+type UserRoleUnion =
+  | "admin"
+  | "editor"
+  | "viewer";
+
+function canDelete(role: UserRoleUnion): boolean {
+  return role === "admin";
+}
+```
+
+---
+
+## Вариант 3. Объект `as const`
+
+```ts
+const UserRole = {
+  Admin: "admin",
+  Editor: "editor",
+  Viewer: "viewer",
+} as const;
+
+type UserRole =
+  (typeof UserRole)[keyof typeof UserRole];
+
+function canDelete(role: UserRole): boolean {
+  return role === UserRole.Admin;
+}
+```
+
+---
+
+## Сравнение
+
+**Строковый `enum`**
+
+✅ Код хорошо читается благодаря именованным значениям (`UserRoleEnum.Admin`).
+
+❌ Создает дополнительный объект в JavaScript.
+
+---
+
+**Литеральное объединение**
+
+✅ Не создает дополнительного JavaScript.
+
+✅ Очень простое описание типа.
+
+❌ Строковые литералы могут повторяться в разных местах программы.
+
+---
+
+**Объект `as const`**
+
+✅ Не использует специальную runtime-конструкцию `enum`.
+
+✅ Позволяет получать значения как `UserRole.Admin`.
+
+✅ Автоматически выводит литеральный union-тип.
+
+✅ Один источник истины для значений и типов.
+
+---
+
+### Итог
+
+Для нового проекта я бы выбрал вариант с `as const`, потому что он сочетает преимущества литеральных объединений и `enum`: не требует отдельной runtime-конструкции TypeScript, предоставляет именованные значения и автоматически выводит точный тип из объекта.

@@ -1,50 +1,17 @@
-type Address = {
-  country: string;
-  city: string;
-  street: string;
-  building: string;
-  postalCode?: string;
-};
+// enum Direction {
+//   Up = "UP",
+//   Down = "DOWN",
+// }
 
-type Customer = {
-  readonly id: number;
-  name: string;
-  contacts: {
-    email: string;
-    phone?: string;
-  };
-  addresses: readonly Address[];
-};
+// const enum DirectionConst {
+//   Up = "UP",
+//   Down = "DOWN",
+// }
 
-const customer: Customer = {
-  id: 1,
-  name: "Анна Смирнова",
-  contacts: {
-    email: "anna@example.com",
-  },
-  addresses: [
-    {
-      country: "Россия",
-      city: "Москва",
-      street: "Тверская",
-      building: "15",
-    },
-  ],
-};
+// console.log("Обычный enum:", Direction);
 
-if (customer.addresses[0]) {
-  customer.addresses[0].city = "Санкт-Петербург";
-}
+// console.log("Значение:", Direction.Up);
 
-// customer.addresses.push({
-//   country: "Россия",
-//   city: "Москва",
-//   street: "Тверская",
-//   building: "1",
-// });
+// console.log("const enum:", DirectionConst); 
 
-function formatAddress(address: Address): string {
-  return [address.country, address.city, address.street, address.building].join(
-    ", ",
-  );
-}
+// console.log("Значение const enum:", DirectionConst.Up); 
