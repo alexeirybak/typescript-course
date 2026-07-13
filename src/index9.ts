@@ -1,34 +1,32 @@
-// enum UserRole {
-//   Admin = "admin",
-//   Editor = "editor",
-//   Viewer = "viewer",
+// // type Order = {
+// //   status: "draft" | "paid" | "shipped";
+// //   paymentDate?: Date;
+// //   trackingNumber?: string;
+// // };
+
+// const order: Order = {
+//   status: "shipped",
+//   paymentDate: new Date(),
+//   trackingNumber: "RU123456",
+// };
+
+// type Order =
+//   | { status: "draft" }
+//   | { status: "paid"; paymentDate: Date }
+//   | { status: "shipped"; trackingNumber: string };
+
+// function printOrder(order: Order) {
+//   switch (order.status) {
+//     case "draft":
+//       console.log("Черновик");
+//       break;
+
+//     case "paid":
+//       console.log(order.paymentDate);
+//       break;
+
+//     case "shipped":
+//       console.log(order.trackingNumber);
+//       break;
+//   }
 // }
-
-// type UserRole = "admin" | "editor" | "viewer";
-
-function canDelete(role: UserRole): boolean {
-  return role === "admin";
-}
-
-console.log(canDelete("admin"));
-console.log(canDelete("editor"));
-
-// const role1: UserRole = "admin";
-const role2: UserRole = "editor";
-
-const UserRole = {
-  Admin: "admin",
-  Editor: "editor",
-  Viewer: "viewer",
-} as const;
-
-type UserRole = (typeof UserRole)[keyof typeof UserRole];
-
-// type UserRole = "admin" | "editor" | "viewer";
-
-function canEdit(role: UserRole): boolean {
-  return role === UserRole.Admin || role === UserRole.Editor;
-}
-
-console.log(canEdit(UserRole.Admin));
-console.log(canEdit(UserRole.Viewer));

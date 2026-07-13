@@ -1,43 +1,15 @@
-// enum OrderStatus {
-//   Draft = 0,
-//   Paid = 1,
-//   Shipped = 2,
+// function getLength(value: string | string[]): number {
+//   if (typeof value === "string") {
+//     return value.length;
+//   }
+
+//   return value.length;
 // }
 
-// const status = OrderStatus.Shipped;
+let value: string | number = Math.random() > 0.5 ? "42" : 42;
 
-// console.log(status);
-
-enum HttpStatus {
-  Ok = 200,
-  NotFound = 404,
-  ServerError = 500,
+if (typeof value === "string") {
+  value = Number(value);
 }
 
-let status;
-
-// if (status === 200) {
-//   console.log("Запрос выполнен успешно");
-// }
-
-// if (status === 404) {
-//   console.log("Страница не найдена");
-// }
-
-// if (status === 500) {
-//   console.log("Внутренняя ошибка сервера");
-// }
-
-// if (status === HttpStatus.Ok) {
-//   console.log("Запрос выполнен успешно");
-// }
-
-// if (status === HttpStatus.NotFound) {
-//   console.log("Страница не найдена");
-// }
-
-// if (status === HttpStatus.ServerError) {
-//   console.log("Внутренняя ошибка сервера");
-// }
-
-console.log(HttpStatus);
+console.log(value.toFixed(2));
