@@ -1,162 +1,158 @@
-# Урок 3. Базовые типы и моделирование данных
+# Урок 9. Классы, инварианты и композиция
 
 ## Домашнее задание
 
-## Контрольные вопросы
+### Контрольные вопросы
 
-1. Чем массив отличается от кортежа?
-2. Почему `discountPercent?: number` при чтении дает `number | undefined`?
-3. В чем разница между `||` и `??` для значения `0`?
-4. Почему литеральное объединение надежнее произвольной строки для статуса?
-5. Защищает ли псевдоним `type ProductId = number` от передачи цены вместо ID?
-6. Что такое сужение типа?
-7. Зачем объектному объединению нужно дискриминирующее поле?
-8. Почему `value!` не делает значение безопасным во время выполнения?
+1. Чем модификатор `private` в TypeScript отличается от приватного поля `#private` в JavaScript?
+2. Что создают **parameter properties** при использовании модификаторов в параметрах конструктора?
+3. В каких случаях getter уместнее обычного метода?
+4. Чем интерфейс отличается от абстрактного класса?
+5. Для чего используется ограничение дженерика `T extends Entity`?
+6. Зачем при переопределении метода использовать ключевое слово `override`?
+7. Почему композиция часто масштабируется лучше глубокой иерархии наследования?
 
 ### Практическое задание
 
-### Задание 1. Модель оплаты
+#### Задание 1
 
-Расширьте модель заказа, добавив покупателя и оплату.
+Создайте класс `TaskEntity`, представляющий задачу в менеджере задач.
 
-**Условия:**
-
-1. Создайте тип `Customer` с полями:
-   - `name: string` — имя покупателя
-   - `email: string` — электронная почта
-   - `phone?: string` — телефон (необязательно)
-
-2. Создайте тип `Payment` — объединение трёх вариантов оплаты:
-   - `card` — оплата картой, хранить `lastFourDigits: string`
-   - `cash` — оплата наличными, хранить `changeFrom: number` (сдача с какой суммы)
-   - `bank-transfer` — банковский перевод, хранить `companyInn: string`
-
-3. Реализуйте функцию `formatPayment(payment: Payment): string`, которая возвращает строковое описание способа оплаты, используя сужение по дискриминирующему полю `method`.
-
-**Заготовка:**
+Используйте следующий тип статуса:
 
 ```ts
-type Customer = {
-  // ваш код
+type TaskStatus = "todo" | "inProgress" | "done";
+```
+
+Класс должен содержать:
+
+* неизменяемый идентификатор `id`;
+* приватное название задачи;
+* приватный статус;
+* дату создания;
+* getter для получения названия;
+* getter для получения текущего статуса.
+
+Для объявления свойств конструктора используйте **parameter properties**.
+
+Добавьте следующие правила:
+
+* название задачи не может быть пустым;
+* новая задача всегда создаётся со статусом `"todo"`;
+* начать выполнение можно только для задачи со статусом `"todo"`;
+* завершить можно только задачу со статусом `"inProgress"`;
+* переименовать завершённую задачу нельзя.
+
+Реализуйте методы:
+
+```ts
+rename(title: string): void;
+start(): void;
+complete(): void;
+```
+
+Создайте тип снимка:
+
+```ts
+type TaskSnapshot = {
+  id: number;
+  title: string;
+  status: TaskStatus;
+  createdAt: string;
 };
+```
 
-type Payment =
-  // ваш код
-  ;
+Затем:
 
-function formatPayment(payment: Payment): string {
-  // ваш код
+1. Добавьте метод `toSnapshot()`, возвращающий обычный объект типа `TaskSnapshot`.
+2. Добавьте статический метод `TaskEntity.fromSnapshot()`.
+3. В методе `fromSnapshot()` проверьте название, статус и корректность даты.
+4. Создайте несколько задач и выполните допустимые переходы между статусами.
+5. Продемонстрируйте обработку ошибок при нарушении правил класса.
+6. Преобразуйте снимок задачи в JSON, а затем восстановите из него экземпляр `TaskEntity`.
+
+---
+
+#### Задание 2
+
+Создайте обобщённое хранилище задач и сервис для работы с ним.
+
+Объявите общий интерфейс сущности:
+
+```ts
+interface Entity {
+  readonly id: number;
 }
 ```
 
-#### Пример использования:
+Создайте обобщённый интерфейс:
 
 ```ts
-const customer: Customer = {
-  name: "Иван Петров",
-  email: "ivan@example.com",
-  phone: "+7 999 123 45 67",
-};
-
-const payment: Payment = {
-  method: "cash",
-  changeFrom: 5000,
-};
-
-console.log(formatPayment(payment));
-```
-
-### Задание 2. Полная модель корзины
-
-Создайте модель корзины интернет-магазина с типами и функциями для работы с ней.
-
-Требования к модели данных:
-
-1. Товар (Product):
-   id: number — идентификатор
-   name: string — название
-   price: number — цена
-   category: string — категория
-2. Позиция в корзине (CartItem):
-   product: Product — товар
-   quantity: number — количество (минимум 1)
-3. Купон (Coupon):
-   code: string — код купона
-   discountPercent: number — процент скидки (от 0 до 100)
-   Корзина (Cart) должна содержать:
-   items: CartItem[] — список позиций
-   coupon?: Coupon — применённый купон (необязательно)
-4. Функции для реализации:
-
-- addItem(cart: Cart, product: Product, quantity: number): Cart — добавить товар в корзину. Если товар уже есть, увеличить количество.
-- removeItem(cart: Cart, productId: number): Cart — удалить позицию из корзины по id товара.
-- updateQuantity(cart: Cart, productId: number, quantity: number): Cart — изменить количество товара. Если quantity <= 0, удалить позицию.
-- applyCoupon(cart: Cart, coupon: Coupon): Cart — применить купон к корзине.
-- calculateTotal(cart: Cart): number — рассчитать итоговую сумму с учётом купона.
-
-5. Ограничения (runtime-проверки):
-   Количество товара не может быть меньше 1
-   Скидка купона должна быть в диапазоне от 0 до 100
-   Цена товара не может быть отрицательной
-
-#### Заготовка:
-
-```ts
-type Product = {
-  // ваш код
-};
-
-type CartItem = {
-  // ваш код
-};
-
-type Coupon = {
-  // ваш код
-};
-
-type Cart = {
-  // ваш код
-};
-
-function addItem(cart: Cart, product: Product, quantity: number): Cart {
-  // ваш код
-}
-
-function removeItem(cart: Cart, productId: number): Cart {
-  // ваш код
-}
-
-function updateQuantity(cart: Cart, productId: number, quantity: number): Cart {
-  // ваш код
-}
-
-function applyCoupon(cart: Cart, coupon: Coupon): Cart {
-  // ваш код
-}
-
-function calculateTotal(cart: Cart): number {
-  // ваш код
+interface Repository<T extends Entity> {
+  save(entity: T): void;
+  findById(id: number): T | undefined;
+  findAll(): T[];
+  remove(id: number): boolean;
 }
 ```
 
-### Дополнительное задание (для углублённой практики)
-
-Добавьте разные состояния корзины через объединение объектов:
-empty — корзина пуста
-active — корзина с товарами
-checkout — корзина в процессе оформления заказа
-
-У каждого состояния должен быть свой набор полей. Например, у checkout может появиться поле deliveryAddress.
+Реализуйте класс:
 
 ```ts
-type CartState =
-  | { status: "empty" }
-  | { status: "active"; items: CartItem[]; coupon?: Coupon }
-  | {
-      status: "checkout";
-      items: CartItem[];
-      coupon?: Coupon;
-      deliveryAddress: string;
-    };
+class InMemoryRepository<T extends Entity>
+  implements Repository<T>
 ```
-Реализуйте функцию checkout(cart: CartState): CartState, которая переводит корзину из состояния active в checkout с проверкой, что корзина не пуста.
+
+Для хранения объектов используйте:
+
+```ts
+Map<number, T>
+```
+
+После этого создайте класс `TaskService`.
+
+Он должен получать репозиторий через конструктор:
+
+```ts
+class TaskService {
+  constructor(
+    private readonly repository: Repository<TaskEntity>,
+  ) {}
+}
+```
+
+Добавьте в сервис методы:
+
+```ts
+create(title: string): TaskEntity;
+findById(id: number): TaskEntity;
+findAll(): TaskEntity[];
+rename(id: number, title: string): void;
+start(id: number): void;
+complete(id: number): void;
+remove(id: number): boolean;
+exportToJson(): string;
+importFromJson(json: string): void;
+```
+
+Требования к реализации:
+
+1. `TaskService` не должен наследоваться от репозитория — используйте композицию.
+2. Идентификатор новой задачи должен создаваться через приватное статическое поле или отдельный статический метод.
+3. После изменения задачи сервис должен сохранять её в репозитории.
+4. Если задача не найдена, методы должны выбрасывать понятную ошибку.
+5. При экспорте используйте только результаты `toSnapshot()`.
+6. При импорте восстанавливайте задачи только через `TaskEntity.fromSnapshot()`.
+7. Не сохраняйте экземпляры классов напрямую в JSON.
+8. Продемонстрируйте, что после восстановления объект снова имеет методы `rename()`, `start()` и `complete()`.
+
+Проверьте минимум пять сценариев:
+
+1. Создание корректной задачи.
+2. Попытка создать задачу с пустым названием.
+3. Последовательность переходов `"todo" → "inProgress" → "done"`.
+4. Попытка выполнить запрещённый переход.
+5. Экспорт задач в JSON и восстановление в новом репозитории.
+6. Поиск и удаление задачи.
+7. Попытка выполнить операцию над несуществующей задачей.
+

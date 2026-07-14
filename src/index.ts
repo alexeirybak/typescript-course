@@ -1,55 +1,19 @@
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-};
+class BankAccount {
+  owner: string;
+  balance: number;
 
-type OrderItem = {
-  product: Product;
-  quantity: number;
-};
+  constructor(owner: string, initialBalance: number) {
+    this.owner = owner;
+    this.balance = initialBalance;
+  }
 
-type Delivery =
-  | { method: "courier"; address: string; price: number }
-  | { method: "pickup"; pickupPointId: number; price: 0 };
-
-type Order = {
-  id: number;
-  status: "draft" | "paid" | "cancelled";
-  items: OrderItem[];
-  delivery: Delivery;
-  promocode?: string;
-};
-
-function calculateItemsTotal(items: OrderItem[]): number {
-  return items.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0,
-  );
+  deposit(amount: number): void {
+    this.balance += amount;
+  }
 }
 
-function calculateOrderTotal(order: Order): number {
-  return calculateItemsTotal(order.items) + order.delivery.price;
-}
+const account = new BankAccount("Анна", -1000);
 
-const order: Order = {
-  id: 101,
-  status: "draft",
-  items: [
-    {
-      product: {
-        id: 1,
-        title: "Клавиатура",
-        price: 7500,
-      },
-      quantity: 2,
-    },
-  ],
-  delivery: {
-    method: "courier",
-    address: "Москва, ул. Примерная, 1",
-    price: 500,
-  },
-};
+account.deposit(500);
 
-console.log(calculateOrderTotal(order));
+console.log(account.balance);
