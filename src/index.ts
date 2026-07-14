@@ -1,13 +1,19 @@
-function normalizeId(id: string | number): string {
-  if (typeof id === "number") {
-    return id.toString();
+class BankAccount {
+  owner: string;
+  balance: number;
+
+  constructor(owner: string, initialBalance: number) {
+    this.owner = owner;
+    this.balance = initialBalance;
   }
 
-  return id.trim().toLowerCase();
+  deposit(amount: number): void {
+    this.balance += amount;
+  }
 }
 
-// typeof null === "object";
+const account = new BankAccount("Анна", -1000);
 
-function isObject(value: unknown): value is object {
-  return typeof value === "object" && value !== null;
-}
+account.deposit(500);
+
+console.log(account.balance);

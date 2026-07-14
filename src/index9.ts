@@ -1,32 +1,50 @@
-// // type Order = {
-// //   status: "draft" | "paid" | "shipped";
-// //   paymentDate?: Date;
-// //   trackingNumber?: string;
-// // };
+type TaskStatus = "todo" | "inProgress" | "done";
 
-// const order: Order = {
-//   status: "shipped",
-//   paymentDate: new Date(),
-//   trackingNumber: "RU123456",
-// };
+class TaskEntity {
+  private status: TaskStatus = "todo";
 
-// type Order =
-//   | { status: "draft" }
-//   | { status: "paid"; paymentDate: Date }
-//   | { status: "shipped"; trackingNumber: string };
+  constructor(
+    public readonly id: number,
+    private title: string,
+  ) {
+    if (title.trim() === "") {
+      throw new Error("Название задачи обязательно");
+    }
+  }
 
-// function printOrder(order: Order) {
-//   switch (order.status) {
-//     case "draft":
-//       console.log("Черновик");
-//       break;
+  rename(title: string): void {
+    if (title.trim() === "") {
+      throw new Error("Название задачи обязательно");
+    }
 
-//     case "paid":
-//       console.log(order.paymentDate);
-//       break;
+    this.title = title.trim();
+  }
 
-//     case "shipped":
-//       console.log(order.trackingNumber);
-//       break;
-//   }
-// }
+  start(): void {
+    if (this.status !== "todo") {
+      throw new Error("Начать можно только новую задачу");
+    }
+
+    this.status = "inProgress";
+  }
+
+  complete(): void {
+    if (this.status !== "inProgress") {
+      throw new Error("Завершить можно только активную задачу");
+    }
+
+    this.status = "done";
+  }
+
+  toSnapshot(): {
+    id: number;
+    title: string;
+    status: TaskStatus;
+  } {
+    return {
+      id: this.id,
+      title: this.title,
+      status: this.status,
+    };
+  }
+}

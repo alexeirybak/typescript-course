@@ -1,50 +1,88 @@
-type User = {
-  id: number;
-  name: string;
-};
+// class EmailNotification {}
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+// class UrgentEmailNotification extends EmailNotification {}
+
+// class RetryingEmailNotification extends EmailNotification {}
+
+// class UrgentRetryingEmailNotification extends EmailNotification {}
+
+// interface Sender {}
+
+// interface MessageFormatter {}
+
+// interface RetryPolicy {}
+
+// class NotificationService {
+//   constructor(
+//     private readonly sender: Sender,
+//     private readonly formatter: MessageFormatter,
+//     private readonly retryPolicy: RetryPolicy,
+//   ) {}
+// }
+
+interface Sender {
+  send(recipient: string, message: string): Promise<void>;
 }
 
-function isUser(value: unknown): value is User {
-  return (
-    isRecord(value) &&
-    typeof value.id === "number" &&
-    typeof value.name === "string"
-  );
+interface MessageFormatter {
+  format(subject: string, body: string): string;
 }
 
-function assertIsUser(value: unknown): asserts value is User {
-  if (!isUser(value)) {
-    throw new Error("Некорректный пользователь");
+interface RetryPolicy {
+  execute(operation: () => Promise<void>): Promise<void>;
+}
+
+class EmailSender implements Sender {
+  async send(recipient: string, message: string): Promise<void> {
+    console.log(`Отправка письма на ${recipient}`);
+    console.log(message);
   }
 }
 
-const payload: unknown = {
-  id: 1,
-  name: "Анна",
-};
-
-assertIsUser(payload);
-
-//console.log(payload.name);
-
-function assertDefined<T>(
-  value: T,
-  message = "Значение отсутствует",
-): asserts value is NonNullable<T> {
-  if (value === null || value === undefined) {
-    throw new Error(message);
+class PlainTextFormatter implements MessageFormatter {
+  format(subject: string, body: string): string {
+    return `${subject}\n\n${body}`;
   }
 }
 
-const users: User[] = [
-  { id: 1, name: "Анна" },
-  { id: 2, name: "Иван" },
-];
+class OneRetryPolicy implements RetryPolicy {
+  async execute(operation: () => Promise<void>): Promise<void> {
+    try {
+      await operation();
+    } catch {
+      console.log("Первая попытка не удалась. Повторяем.");
 
-const user = users.find((item) => item.id === 2);
+      await operation();
+    }
+  }
+}
 
-assertDefined(user, "Пользователь не найден");
-console.log(user.name);
+class NotificationService {
+  constructor(
+    private readonly sender: Sender,
+    private readonly formatter: MessageFormatter,
+    private readonly retryPolicy: RetryPolicy,
+  ) {}
+
+  async notify(
+    recipient: string,
+    subject: string,
+    body: string,
+  ): Promise<void> {
+    const message = this.formatter.format(subject, body);
+
+    await this.retryPolicy.execute(() => this.sender.send(recipient, message));
+  }
+}
+
+const notificationService = new NotificationService(
+  new EmailSender(),
+  new PlainTextFormatter(),
+  new OneRetryPolicy(),
+);
+
+notificationService.notify(
+  "user@example.com",
+  "Важное сообщение",
+  "Ваш заказ успешно отправлен.",
+);

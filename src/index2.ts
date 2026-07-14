@@ -1,16 +1,62 @@
-function printTitle(title: string | null | undefined): void {
-  if (title === null || title === undefined) {
-    console.log("Заголовок не найден");
-    return;
+class SafeBankAccount {
+  readonly id: string;
+  public owner: string;
+  private balance: number;
+
+  constructor(id: string, owner: string, initialBalance: number) {
+    if (initialBalance < 0) {
+      throw new Error("Начальный баланс не может быть отрицательным");
+    }
+
+    this.id = id;
+    this.owner = owner;
+    this.balance = initialBalance;
   }
 
-  console.log(title.toUpperCase());
+  getBalance(): number {
+    return this.balance;
+  }
+
+  deposit(amount: number): void {
+    if (amount <= 0) {
+      throw new Error("Сумма пополнения должна быть положительной");
+    }
+
+    this.balance += amount;
+  }
+
+  withdraw(amount: number): void {
+    if (amount <= 0) {
+      throw new Error("Сумма списания должна быть положительной");
+    }
+
+    if (amount > this.balance) {
+      throw new Error("Недостаточно средств");
+    }
+
+    this.balance -= amount;
+  }
 }
 
-printTitle("");
+const account = new SafeBankAccount("1", "Анна", 1000);
 
-let count = 0;
+// account.id = "2";
 
-if (count !== undefined || count !== null) {
-  console.log(count);
+// account.owner = "Мария";
+
+// account.balance = 5000;
+
+class SecretBox {
+  #secret: string;
+
+  constructor(secret: string) {
+    this.#secret = secret;
+  }
+
+  reveal(): string {
+    return this.#secret;
+  }
 }
+
+const obj = new SecretBox("секрет");
+console.log(obj.reveal());

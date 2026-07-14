@@ -1,15 +1,28 @@
-// function getLength(value: string | string[]): number {
-//   if (typeof value === "string") {
-//     return value.length;
-//   }
-
-//   return value.length;
-// }
-
-let value: string | number = Math.random() > 0.5 ? "42" : 42;
-
-if (typeof value === "string") {
-  value = Number(value);
+interface PaymentProcessorContract {
+  pay(amount: number): Promise<string>;
 }
 
-console.log(value.toFixed(2));
+abstract class PaymentProcessor implements PaymentProcessorContract {
+  constructor(protected readonly merchantId: string) {}
+
+  abstract pay(amount: number): Promise<string>;
+
+  protected validateAmount(amount: number): void {
+    if (amount <= 0) {
+      throw new Error("Сумма должна быть положительной");
+    }
+  }
+}
+
+class CardPaymentProcessor extends PaymentProcessor {
+  override async pay(amount: number): Promise<string> {
+    this.validateAmount(amount);
+    return `card-${this.merchantId}-${Date.now()}`;
+  }
+}
+
+//new PaymentProcessor("shop-1");
+
+const processor = new CardPaymentProcessor("shop-1");
+
+// processor.validateAmount(1000);

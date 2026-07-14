@@ -1,30 +1,17 @@
-// type Cat = {
-//   meow(): void;
-// };
+class Temperature {
+  constructor(private celsius: number) {}
 
-// type Dog = {
-//   bark(): void;
-// };
+  get fahrenheit(): number {
+    return this.celsius * 1.8 + 32;
+  }
 
-// type Fish = {
-//   swim(): void;
-// };
-
-// function makeSound(animal: Cat | Dog | Fish): void {
-//   if ("meow" in animal) {
-//     animal.meow();
-//   } else {
-//     animal.bark();
-//   }
-// }
-
-type Human = {
-  meow?: () => void;
-  bark?: () => void;
-};
-
-function makeSound(animal: Human) {
-  if ("meow" in animal && typeof animal.meow === "function") {
-    animal.meow();
+  set fahrenheit(value: number) {
+    this.celsius = (value - 32) / 1.8;
   }
 }
+
+const temperature = new Temperature(20);
+
+console.log(temperature.fahrenheit);
+
+temperature.fahrenheit = 68;
