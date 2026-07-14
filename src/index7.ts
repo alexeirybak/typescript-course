@@ -1,50 +1,43 @@
-// // const value: unknown = {
-// //   id: 1,
-// //   name: "Анна",
-// // };
+interface Entity {
+  id: number;
+}
 
-// type User = {
-//   id: number;
-//   name: string;
-// };
+class InMemoryRepository<T extends Entity> {
+  private readonly items = new Map<number, T>();
 
-// function isRecord(value: unknown): value is Record<string, unknown> {
-//   return typeof value === "object" && value !== null;
-// }
+  save(entity: T): void {
+    this.items.set(entity.id, entity);
+  }
 
-// function isUser(value: unknown): value is User {
-//   return (
-//     isRecord(value) &&
-//     typeof value.id === "number" &&
-//     typeof value.name === "string"
-//   );
-// }
+  findById(id: number): T | undefined {
+    return this.items.get(id);
+  }
 
-// if (isUser(value)) {
-//   console.log(value.id);
-// }
+  findAll(): T[] {
+    return [...this.items.values()];
+  }
 
-// const values: unknown[] = [
-//   { id: 1, name: "Анна" },
-//   null,
-//   "not user",
-//   { id: "2", name: "Иван" },
-//   { id: 3, name: "Мария" },
-// ];
+  remove(id: number): boolean {
+    return this.items.delete(id);
+  }
+}
 
-// const users = values.filter(isUser);
+type Task = {
+  id: number;
+  title: string;
+  completed: boolean;
+};
 
-// users.forEach((user) => {
-//   console.log(user.id);
-//   console.log(user.name);
-// });
+const taskRepository = new InMemoryRepository<Task>();
 
-// function isUserLiar(value: unknown): value is User {
-//   return true;
-// }
+taskRepository.save({
+  id: 1,
+  title: "Изучить классы",
+  completed: false,
+});
 
-// const value: unknown = 123;
+type Category = {
+  title: string;
+};
 
-// if (isUserLiar(value)) {
-//   console.log(value.name);
-// }
+// const newClass = new InMemoryRepository<Category>();

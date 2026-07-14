@@ -11,7 +11,7 @@
     "noEmitOnError": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
-    "noImplicitReturns": false
+    "noImplicitReturns": false,
   },
   "include": ["src", "src/index6.ts"]
 }
