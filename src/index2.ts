@@ -1,62 +1,22 @@
-class SafeBankAccount {
-  readonly id: string;
-  public owner: string;
-  private balance: number;
+type HasId = {
+  id: string | number;
+};
 
-  constructor(id: string, owner: string, initialBalance: number) {
-    if (initialBalance < 0) {
-      throw new Error("Начальный баланс не может быть отрицательным");
-    }
-
-    this.id = id;
-    this.owner = owner;
-    this.balance = initialBalance;
-  }
-
-  getBalance(): number {
-    return this.balance;
-  }
-
-  deposit(amount: number): void {
-    if (amount <= 0) {
-      throw new Error("Сумма пополнения должна быть положительной");
-    }
-
-    this.balance += amount;
-  }
-
-  withdraw(amount: number): void {
-    if (amount <= 0) {
-      throw new Error("Сумма списания должна быть положительной");
-    }
-
-    if (amount > this.balance) {
-      throw new Error("Недостаточно средств");
-    }
-
-    this.balance -= amount;
-  }
+function logIdBroken<T extends HasId>(value: T): T {
+  console.log(value.id);
+  return value;
 }
 
-const account = new SafeBankAccount("1", "Анна", 1000);
+// logIdBroken(100);
 
-// account.id = "2";
+// logIdBroken("Hello");
 
-// account.owner = "Мария";
+// logIdBroken(true);
 
-// account.balance = 5000;
+const product = logIdBroken({
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+});
 
-class SecretBox {
-  #secret: string;
-
-  constructor(secret: string) {
-    this.#secret = secret;
-  }
-
-  reveal(): string {
-    return this.#secret;
-  }
-}
-
-const obj = new SecretBox("секрет");
-console.log(obj.reveal());
+console.log(product.title);
