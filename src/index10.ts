@@ -1,40 +1,35 @@
-interface NotificationBase {
-  readonly id: string;
-  recipientId: number;
-  createdAt: Date;
-}
+type RequestState<T> =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: T }
+  | { status: "error"; error: Error }
+//   | { status: "refreshing" };
 
-type EmailNotification = NotificationBase & {
-  channel: "email";
-  email: string;
-  subject: string;
-  body: string;
+type User = {
+  id: number;
+  name: string;
 };
 
-type SmsNotification = NotificationBase & {
-  channel: "sms";
-  phone: string;
-  text: string;
-};
+// function assertNever(_value: never): never {
+//   throw new Error("Необработанный вариант");
+// }
 
-type PushNotification = NotificationBase & {
-  channel: "push";
-  deviceToken: string;
-  title: string;
-  body: string;
-};
+function renderUsers(state: RequestState<User[]>): string {
+  switch (state.status) {
+    case "idle":
+      return "Ожидание";
 
-type Notification = EmailNotification | SmsNotification | PushNotification;
+    case "loading":
+      return "Загрузка";
 
-function getDestination(notification: Notification): string {
-  switch (notification.channel) {
-    case "email":
-      return notification.email;
+    case "success":
+      return `${state.data.length} пользователей`;
 
-    case "sms":
-      return notification.phone;
+    case "error":
+      return state.error.message;
 
-    case "push":
-      return notification.deviceToken;
+    default:
+      state satisfies never;
+      return "Быть такого не может";
   }
 }

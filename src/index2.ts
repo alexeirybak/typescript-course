@@ -1,35 +1,16 @@
-type User = {
-  id: number;
-  name: string;
-};
+function printTitle(title: string | null | undefined): void {
+  if (title === null || title === undefined) {
+    console.log("Заголовок не найден");
+    return;
+  }
 
-type Id = string | number;
+  console.log(title.toUpperCase());
+}
 
-type Status = "draft" | "published";
+printTitle("");
 
-type Coordinates = [number, number];
+let count = 0;
 
-type Handler = (message: string) => void;
-
-type Identified = {
-  id: number;
-};
-
-type Timestamped = {
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type Article = Identified &
-  Timestamped & {
-    title: string;
-    status: "draft" | "published";
-  };
-
-// type Article = {
-//   id: number;
-//   createdAt: Date;
-//   updatedAt: Date;
-//   title: string;
-//   status: "draft" | "published";
-// };
+if (count !== undefined || count !== null) {
+  console.log(count);
+}

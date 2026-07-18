@@ -2,368 +2,478 @@
 
 ## Контрольные вопросы
 
-### 1. В чем основное отличие `type` от `interface`?
+Ниже готовое решение домашнего задания.
 
-`interface` предназначен для описания объектных контрактов и поддерживает расширение (`extends`) и слияние объявлений (declaration merging).
+# Домашнее задание. Решение
 
-`type` — это псевдоним типа. С его помощью можно дать имя практически любому типу: объекту, объединению, пересечению, функции, кортежу и т.д.
+## Контрольные вопросы
 
-Для большинства обычных объектов можно использовать оба варианта.
+### 1. Почему `if (value)` может ошибочно отбросить пустую строку или число `0`?
+
+Потому что JavaScript считает пустую строку и число `0` ложными значениями.
+
+```ts
+const title = "";
+
+if (title) {
+  console.log("Заголовок есть");
+}
+```
+
+Ветка `if` не выполнится, хотя `title` является строкой.
+
+То же самое произойдёт с числом `0`.
+
+Если эти значения допустимы, лучше проверять только `null` и `undefined`:
+
+```ts
+if (value !== null && value !== undefined) {
+  console.log(value);
+}
+```
 
 ---
 
-### 2. Какие типы можно описать через `type`, но нельзя напрямую через `interface`?
+### 2. Можно ли использовать `instanceof` с интерфейсом? Почему?
 
-Через `type` можно описывать:
+Нет.
 
-* объединения (`union`);
-* пересечения (`intersection`);
-* кортежи (`tuple`);
-* типы функций;
-* литеральные типы;
-* псевдонимы примитивных типов.
+Интерфейс существует только во время проверки TypeScript и удаляется после компиляции.
+
+```ts
+interface User {
+  name: string;
+}
+```
+
+Поэтому такая проверка невозможна:
+
+```ts
+// value instanceof User;
+```
+
+`instanceof` работает только с классами и конструкторами, которые существуют во время выполнения JavaScript.
 
 Например:
 
 ```ts
-type Id = string | number;
-
-type Point = [number, number];
-
-type Handler = (message: string) => void;
-
-type Status = "draft" | "published";
+value instanceof Date;
+value instanceof Error;
 ```
 
 ---
 
-### 3. Что такое declaration merging и для чего оно используется?
+### 3. Кто отвечает за корректность пользовательского type guard?
 
-Declaration merging — это автоматическое объединение нескольких интерфейсов с одинаковым именем.
+Разработчик.
+
+TypeScript доверяет записи:
 
 ```ts
-interface Settings {
-  theme: "light" | "dark";
-}
+value is User
+```
 
-interface Settings {
-  locale: "ru" | "en";
+Он не проверяет, правильно ли написана логика внутри функции.
+
+Например, такая функция формально допустима:
+
+```ts
+function isUser(value: unknown): value is User {
+  return true;
 }
 ```
 
-TypeScript объединит их в один интерфейс.
-
-Эта возможность чаще всего используется при расширении типов библиотек и встроенных объектов JavaScript.
+Но она работает неправильно, потому что принимает любое значение за пользователя.
 
 ---
 
-### 4. Что делает ключевое слово `implements`?
+### 4. Чем assertion function отличается от обычного type guard?
 
-`implements` проверяет, что класс соответствует указанному контракту.
+Type guard возвращает `true` или `false`.
 
 ```ts
-interface Publishable {
-  publish(): void;
-}
-
-class Article implements Publishable {
-  publish(): void {
-    console.log("Статья опубликована");
-  }
+if (isUser(value)) {
+  console.log(value.name);
 }
 ```
 
-После компиляции `implements` исчезает и никак не влияет на JavaScript-код.
+Assertion function либо завершается нормально, либо выбрасывает ошибку.
+
+```ts
+assertIsUser(value);
+
+console.log(value.name);
+```
+
+После успешного вызова assertion function TypeScript считает, что значение имеет нужный тип.
 
 ---
 
-### 5. Чем обычный `enum` отличается от `const enum`?
+### 5. Зачем нужны дискриминируемые объединения?
 
-Обычный `enum` существует и во время компиляции, и во время выполнения программы.
+Они позволяют описывать несколько вариантов объекта так, чтобы каждый вариант имел собственные обязательные поля.
 
-```ts
-enum Direction {
-  Up = "UP",
-  Down = "DOWN",
-}
-```
-
-`const enum` используется только во время компиляции.
+Например:
 
 ```ts
-const enum Direction {
-  Up = "UP",
-  Down = "DOWN",
-}
+type Notification =
+  | { type: "email"; email: string }
+  | { type: "sms"; phone: string };
 ```
 
-TypeScript подставляет значения прямо в код и не создает объект перечисления.
+Если `type` равен `"email"`, обязательно должно быть поле `email`.
 
----
+Если `type` равен `"sms"`, обязательно должно быть поле `phone`.
 
-### 6. В чем преимущества литерального объединения перед строковым `enum`?
-
-Литеральное объединение:
-
-* не создает дополнительный JavaScript-код;
-* использует обычные строки;
-* хорошо подходит для работы с API;
-* требует меньше кода.
-
-```ts
-type UserRole = "admin" | "editor" | "viewer";
-```
-
----
-
-### 7. Как получить union-тип из объекта, объявленного с `as const`?
-
-```ts
-const DocumentStatus = {
-  Draft: "draft",
-  Published: "published",
-  Archived: "archived",
-} as const;
-
-type DocumentStatus =
-  (typeof DocumentStatus)[keyof typeof DocumentStatus];
-```
-
-Получится:
-
-```ts
-type DocumentStatus =
-  | "draft"
-  | "published"
-  | "archived";
-```
+Это запрещает создавать нелогичные комбинации полей и позволяет TypeScript сужать тип по значению поля `type`.
 
 ---
 
 # Практическое задание
 
-## Задание 1–4
+## Задание 1. Уведомления
+
+Создадим три отдельных типа уведомлений.
 
 ```ts
-const DocumentStatus = {
-  Draft: "draft",
-  Published: "published",
-  Archived: "archived",
-} as const;
-
-type DocumentStatus =
-  (typeof DocumentStatus)[keyof typeof DocumentStatus];
-
-interface DocumentBase {
+type EmailNotification = {
+  type: "email";
   id: number;
-  author: string;
   createdAt: Date;
-  status: DocumentStatus;
-}
-
-type Article = DocumentBase & {
-  type: "article";
-  title: string;
-  content: string;
+  email: string;
+  subject: string;
 };
 
-type Video = DocumentBase & {
-  type: "video";
-  title: string;
-  duration: number;
-  videoUrl: string;
+type SmsNotification = {
+  type: "sms";
+  id: number;
+  createdAt: Date;
+  phone: string;
 };
 
-type Podcast = DocumentBase & {
-  type: "podcast";
-  title: string;
-  duration: number;
-  audioUrl: string;
+type PushNotification = {
+  type: "push";
+  id: number;
+  createdAt: Date;
+  deviceId: string;
 };
+```
 
-type Document = Article | Video | Podcast;
+Объединим их в один тип:
 
-interface Publishable {
-  publish(): void;
+```ts
+type Notification =
+  | EmailNotification
+  | SmsNotification
+  | PushNotification;
+```
+
+Добавим функцию для исчерпывающей проверки:
+
+```ts
+function assertNever(value: never): never {
+  throw new Error(`Необработанный вариант: ${JSON.stringify(value)}`);
 }
+```
 
-class ArticleDocument implements Publishable {
-  constructor(
-    public readonly id: number,
-    public author: string,
-    public readonly createdAt: Date,
-    public status: DocumentStatus,
-    public title: string,
-    public content: string,
-  ) {}
+Напишем функцию форматирования:
 
-  publish(): void {
-    this.status = DocumentStatus.Published;
-    console.log(`Статья «${this.title}» опубликована.`);
-  }
-}
+```ts
+function formatNotification(notification: Notification): string {
+  switch (notification.type) {
+    case "email":
+      return `Email на адрес ${notification.email}. Тема: ${notification.subject}`;
 
-function getDocumentInfo(document: Document): string {
-  switch (document.type) {
-    case "article":
-      return `Статья: ${document.title}
-Автор: ${document.author}
-Статус: ${document.status}`;
+    case "sms":
+      return `SMS на номер ${notification.phone}`;
 
-    case "video":
-      return `Видео: ${document.title}
-Автор: ${document.author}
-Длительность: ${document.duration} мин.
-Статус: ${document.status}`;
+    case "push":
+      return `Push-уведомление на устройство ${notification.deviceId}`;
 
-    case "podcast":
-      return `Подкаст: ${document.title}
-Автор: ${document.author}
-Длительность: ${document.duration} мин.
-Статус: ${document.status}`;
+    default:
+      return assertNever(notification);
   }
 }
 ```
 
-### Проверка
+Создадим массив уведомлений:
 
 ```ts
-const article: Article = {
-  id: 1,
-  author: "Анна",
-  createdAt: new Date(),
-  status: DocumentStatus.Draft,
-  type: "article",
-  title: "Основы TypeScript",
-  content: "Содержимое статьи",
+const notifications: Notification[] = [
+  {
+    type: "email",
+    id: 1,
+    createdAt: new Date("2026-07-01"),
+    email: "anna@example.com",
+    subject: "Добро пожаловать",
+  },
+  {
+    type: "sms",
+    id: 2,
+    createdAt: new Date("2026-07-02"),
+    phone: "+7 900 123-45-67",
+  },
+  {
+    type: "push",
+    id: 3,
+    createdAt: new Date("2026-07-03"),
+    deviceId: "device-123",
+  },
+];
+```
+
+Выведем описание каждого уведомления:
+
+```ts
+notifications.forEach((notification) => {
+  console.log(formatNotification(notification));
+});
+```
+
+Полный код первого задания:
+
+```ts
+type EmailNotification = {
+  type: "email";
+  id: number;
+  createdAt: Date;
+  email: string;
+  subject: string;
 };
 
-const video: Video = {
-  id: 2,
-  author: "Иван",
-  createdAt: new Date(),
-  status: DocumentStatus.Published,
-  type: "video",
-  title: "Объектные типы",
-  duration: 25,
-  videoUrl: "https://example.com/video",
+type SmsNotification = {
+  type: "sms";
+  id: number;
+  createdAt: Date;
+  phone: string;
 };
 
-const podcast: Podcast = {
-  id: 3,
-  author: "Мария",
-  createdAt: new Date(),
-  status: DocumentStatus.Archived,
-  type: "podcast",
-  title: "Разговор о TypeScript",
-  duration: 45,
-  audioUrl: "https://example.com/podcast",
+type PushNotification = {
+  type: "push";
+  id: number;
+  createdAt: Date;
+  deviceId: string;
 };
 
-console.log(getDocumentInfo(article));
-console.log(getDocumentInfo(video));
-console.log(getDocumentInfo(podcast));
+type Notification =
+  | EmailNotification
+  | SmsNotification
+  | PushNotification;
 
-const articleDocument = new ArticleDocument(
-  4,
-  "Алексей",
-  new Date(),
-  DocumentStatus.Draft,
-  "TypeScript на практике",
-  "Текст статьи",
-);
+function assertNever(value: never): never {
+  throw new Error(`Необработанный вариант: ${JSON.stringify(value)}`);
+}
 
-articleDocument.publish();
+function formatNotification(notification: Notification): string {
+  switch (notification.type) {
+    case "email":
+      return `Email на адрес ${notification.email}. Тема: ${notification.subject}`;
 
-console.log(articleDocument.status);
+    case "sms":
+      return `SMS на номер ${notification.phone}`;
+
+    case "push":
+      return `Push-уведомление на устройство ${notification.deviceId}`;
+
+    default:
+      return assertNever(notification);
+  }
+}
+
+const notifications: Notification[] = [
+  {
+    type: "email",
+    id: 1,
+    createdAt: new Date("2026-07-01"),
+    email: "anna@example.com",
+    subject: "Добро пожаловать",
+  },
+  {
+    type: "sms",
+    id: 2,
+    createdAt: new Date("2026-07-02"),
+    phone: "+7 900 123-45-67",
+  },
+  {
+    type: "push",
+    id: 3,
+    createdAt: new Date("2026-07-03"),
+    deviceId: "device-123",
+  },
+];
+
+notifications.forEach((notification) => {
+  console.log(formatNotification(notification));
+});
+```
+
+Результат:
+
+```text
+Email на адрес anna@example.com. Тема: Добро пожаловать
+SMS на номер +7 900 123-45-67
+Push-уведомление на устройство device-123
 ```
 
 ---
 
-# Дополнительное задание ⭐
+## Задание 2. Проверка пользователей
 
-## Вариант 1. Строковый `enum`
+Исходный массив:
 
 ```ts
-enum UserRoleEnum {
-  Admin = "admin",
-  Editor = "editor",
-  Viewer = "viewer",
-}
-
-function canDelete(role: UserRoleEnum): boolean {
-  return role === UserRoleEnum.Admin;
-}
+const values: unknown[] = [
+  { id: 1, name: "Анна" },
+  { id: "2", name: "Иван" },
+  null,
+  "Hello",
+  { id: 3, name: "Мария" },
+];
 ```
 
----
-
-## Вариант 2. Литеральное объединение
+Создадим тип пользователя:
 
 ```ts
-type UserRoleUnion =
-  | "admin"
-  | "editor"
-  | "viewer";
-
-function canDelete(role: UserRoleUnion): boolean {
-  return role === "admin";
-}
+type User = {
+  id: number;
+  name: string;
+};
 ```
 
----
-
-## Вариант 3. Объект `as const`
+Сначала напишем вспомогательную функцию, которая проверяет, что значение является объектом:
 
 ```ts
-const UserRole = {
-  Admin: "admin",
-  Editor: "editor",
-  Viewer: "viewer",
-} as const;
-
-type UserRole =
-  (typeof UserRole)[keyof typeof UserRole];
-
-function canDelete(role: UserRole): boolean {
-  return role === UserRole.Admin;
+function isRecord(
+  value: unknown,
+): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 ```
 
----
+Теперь напишем пользовательский type guard:
 
-## Сравнение
+```ts
+function isUser(value: unknown): value is User {
+  return (
+    isRecord(value) &&
+    typeof value.id === "number" &&
+    typeof value.name === "string"
+  );
+}
+```
 
-**Строковый `enum`**
+Отфильтруем массив:
 
-✅ Код хорошо читается благодаря именованным значениям (`UserRoleEnum.Admin`).
+```ts
+const users = values.filter(isUser);
+```
 
-❌ Создает дополнительный объект в JavaScript.
+Тип переменной `users`:
 
----
+```ts
+User[]
+```
 
-**Литеральное объединение**
+Выведем имена пользователей:
 
-✅ Не создает дополнительного JavaScript.
+```ts
+users.forEach((user) => {
+  console.log(user.name);
+});
+```
 
-✅ Очень простое описание типа.
+В результате будут выведены:
 
-❌ Строковые литералы могут повторяться в разных местах программы.
+```text
+Анна
+Мария
+```
 
----
+Объект с Иваном не попадёт в массив, потому что его `id` является строкой, а не числом.
 
-**Объект `as const`**
+Теперь создадим assertion function:
 
-✅ Не использует специальную runtime-конструкцию `enum`.
+```ts
+function assertIsUser(value: unknown): asserts value is User {
+  if (!isUser(value)) {
+    throw new Error("Значение не является пользователем");
+  }
+}
+```
 
-✅ Позволяет получать значения как `UserRole.Admin`.
+Продемонстрируем её использование:
 
-✅ Автоматически выводит литеральный union-тип.
+```ts
+const payload: unknown = {
+  id: 4,
+  name: "Олег",
+};
 
-✅ Один источник истины для значений и типов.
+assertIsUser(payload);
 
----
+console.log(payload.name);
+```
 
-### Итог
+До вызова `assertIsUser` переменная `payload` имеет тип `unknown`.
 
-Для нового проекта я бы выбрал вариант с `as const`, потому что он сочетает преимущества литеральных объединений и `enum`: не требует отдельной runtime-конструкции TypeScript, предоставляет именованные значения и автоматически выводит точный тип из объекта.
+После успешного вызова TypeScript считает её типом `User`.
+
+Полный код второго задания:
+
+```ts
+type User = {
+  id: number;
+  name: string;
+};
+
+function isRecord(
+  value: unknown,
+): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isUser(value: unknown): value is User {
+  return (
+    isRecord(value) &&
+    typeof value.id === "number" &&
+    typeof value.name === "string"
+  );
+}
+
+function assertIsUser(value: unknown): asserts value is User {
+  if (!isUser(value)) {
+    throw new Error("Значение не является пользователем");
+  }
+}
+
+const values: unknown[] = [
+  { id: 1, name: "Анна" },
+  { id: "2", name: "Иван" },
+  null,
+  "Hello",
+  { id: 3, name: "Мария" },
+];
+
+const users = values.filter(isUser);
+
+users.forEach((user) => {
+  console.log(user.name);
+});
+
+const payload: unknown = {
+  id: 4,
+  name: "Олег",
+};
+
+assertIsUser(payload);
+
+console.log(payload.name);
+```
+
+Результат:
+
+```text
+Анна
+Мария
+Олег
+```

@@ -1,29 +1,30 @@
-interface WindowSettings {
-  theme: "light" | "dark";
-}
-
-interface WindowSettings {
-  locale: "ru" | "en";
-}
-
-// interface WindowSettings {
-//   theme: "light" | "dark";
-//   locale: "ru" | "en";
-// }
-
-// const settings: WindowSettings = {
-//   theme: "dark",
-//   locale: "ru",
+// type Cat = {
+//   meow(): void;
 // };
 
-// console.log(settings);
+// type Dog = {
+//   bark(): void;
+// };
 
-window.appVersion = "1.0.0";
+// type Fish = {
+//   swim(): void;
+// };
 
-declare global {
-  interface Window {
-    appVersion: string;
+// function makeSound(animal: Cat | Dog | Fish): void {
+//   if ("meow" in animal) {
+//     animal.meow();
+//   } else {
+//     animal.bark();
+//   }
+// }
+
+type Human = {
+  meow?: () => void;
+  bark?: () => void;
+};
+
+function makeSound(animal: Human) {
+  if ("meow" in animal && typeof animal.meow === "function") {
+    animal.meow();
   }
 }
-
-export {};

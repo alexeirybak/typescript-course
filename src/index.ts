@@ -1,15 +1,13 @@
-type User = {
-  readonly id: number;
-  name?: string;
-};
+function normalizeId(id: string | number): string {
+  if (typeof id === "number") {
+    return id.toString();
+  }
 
-const user: User = {
-  id: 1,
-  name: "Анна",
-};
-
-function printUser(user: User): void {
-  console.log(`${user.id}: ${user.name}`);
+  return id.trim().toLowerCase();
 }
 
-printUser(user);
+// typeof null === "object";
+
+function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
+}
