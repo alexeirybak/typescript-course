@@ -1,55 +1,37 @@
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-};
+// const productPrice: number = 1200;
+// const discountPercent: number = 15;
 
-type OrderItem = {
-  product: Product;
-  quantity: number;
-};
+// function calculateDiscount(price: number, percent: number): number {
+//   return price * (percent / 100);
+// }
 
-type Delivery =
-  | { method: "courier"; address: string; price: number }
-  | { method: "pickup"; pickupPointId: number; price: 0 };
+// const discount: number = calculateDiscount(productPrice, discountPercent);
 
-type Order = {
-  id: number;
-  status: "draft" | "paid" | "cancelled";
-  items: OrderItem[];
-  delivery: Delivery;
-  promocode?: string;
-};
+// console.log(discount);
 
-function calculateItemsTotal(items: OrderItem[]): number {
-  return items.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0,
-  );
+// const price: number = 3500;
+
+// function getPriceLabel(price: number): string {
+//   return `${price.toLocaleString("ru-RU")} руб.`;
+// }
+
+// const priceLabel: string = getPriceLabel(price);
+
+// console.log(priceLabel);
+
+const userName: string = "Анна";
+const userTitle: string = "доктор";
+
+function greet(name: string, title?: string): string {
+  if (title === undefined) {
+    return `Здравствуйте, ${name}`;
+  }
+
+  return `Здравствуйте, ${title} ${name}`;
 }
 
-function calculateOrderTotal(order: Order): number {
-  return calculateItemsTotal(order.items) + order.delivery.price;
-}
+const greetingWithoutTitle: string = greet(userName);
+const greetingWithTitle: string = greet(userName, userTitle);
 
-const order: Order = {
-  id: 101,
-  status: "draft",
-  items: [
-    {
-      product: {
-        id: 1,
-        title: "Клавиатура",
-        price: 7500,
-      },
-      quantity: 2,
-    },
-  ],
-  delivery: {
-    method: "courier",
-    address: "Москва, ул. Примерная, 1",
-    price: 500,
-  },
-};
-
-console.log(calculateOrderTotal(order));
+console.log(greetingWithoutTitle);
+console.log(greetingWithTitle);

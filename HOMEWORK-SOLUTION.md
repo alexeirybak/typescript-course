@@ -1,211 +1,341 @@
-## Ответы на контрольные вопросы для самопроверки
+# Решение домашнего задания
 
-1. Массив хранит любое количество элементов одного типа. Кортеж хранит заранее известное количество элементов, и у каждой позиции может быть свой тип.
-2. Потому что поле с `?` может отсутствовать. Если поля нет, при чтении получится `undefined`.
-3. `??` срабатывает только для `null` и `undefined`, а `||` также срабатывает для `0`, пустой строки и `false`.
-4. Литеральное объединение ограничивает список допустимых строк и помогает поймать опечатки.
-5. Нет. `Money` и `ProductId` как псевдонимы `number` остаются совместимыми.
-6. Сужение типа - это ситуация, когда после проверки TypeScript знает более точный тип значения.
-7. По дискриминирующему полю TypeScript понимает, какой именно вариант объекта перед ним.
-8. Потому что `!` влияет только на проверку TypeScript. Он не добавляет runtime-проверку и не меняет само значение.
+## Контрольные вопросы
 
-### Задание 1. Модель оплаты
+### 1. Чем необязательный параметр отличается от `string | undefined`?
+
+Необязательный параметр можно не передавать при вызове функции:
 
 ```ts
-type Customer = {
-  name: string;
-  email: string;
-  phone?: string;
+function greet(name: string, title?: string): string {
+  return title === undefined ? `Здравствуйте, ${name}` : `Здравствуйте, ${title} ${name}`;
+}
+
+greet("Анна");
+greet("Анна", "доктор");
+```
+
+А параметр типа `string | undefined` всё равно нужно передать по позиции:
+
+```ts
+function greetExplicit(name: string, title: string | undefined): string {
+  return title === undefined ? `Здравствуйте, ${name}` : `Здравствуйте, ${title} ${name}`;
+}
+
+greetExplicit("Анна", undefined);
+```
+
+Главное отличие: `title?: string` можно пропустить, а `title: string | undefined` нужно передать явно.
+
+### 2. Когда перегрузка лучше объединения?
+
+Перегрузка лучше, когда возвращаемый тип зависит от того, какие аргументы передали.
+
+```ts
+function parseValue(value: string, kind: "number"): number;
+function parseValue(value: string, kind: "boolean"): boolean;
+
+function parseValue(value: string, kind: "number" | "boolean"): number | boolean {
+  return kind === "number" ? Number(value) : value === "true";
+}
+
+const count = parseValue("42", "number");
+const enabled = parseValue("true", "boolean");
+```
+
+TypeScript понимает, что `count` — это `number`, а `enabled` — это `boolean`.
+
+### 3. Почему callback может объявить меньше параметров, чем ему передают?
+
+Потому что функция не обязана использовать все аргументы, которые ей передают.
+
+```ts
+products.map((product) => {
+  return product.title;
+});
+```
+
+Метод `map` передаёт ещё индекс и массив, но callback может их не объявлять. Лишние аргументы просто игнорируются.
+
+### 4. Что происходит с псевдопараметром `this` после компиляции?
+
+Псевдопараметр `this` существует только в TypeScript и нужен только для проверки типов.
+
+```ts
+type Counter = {
+  value: number;
+  increment(this: Counter, amount: number): void;
 };
+```
 
-type Payment =
-  | { method: "card"; lastFourDigits: string }
-  | { method: "cash"; changeFrom: number }
-  | { method: "bank-transfer"; companyInn: string };
+После компиляции этот параметр исчезает. Функцию всё равно вызывают так:
 
-function formatPayment(payment: Payment): string {
-  if (payment.method === "card") {
-    return `Карта, последние цифры: ${payment.lastFourDigits}`;
-  }
+```ts
+counter.increment(5);
+```
 
-  if (payment.method === "cash") {
-    return `Наличные, подготовить сдачу с ${payment.changeFrom}`;
-  }
+а не так:
 
-  return `Банковский перевод, ИНН: ${payment.companyInn}`;
+```ts
+counter.increment(counter, 5);
+```
+
+### 5. Как дженерик сохраняет связь между входом и выходом?
+
+Дженерик позволяет использовать один и тот же параметр типа в разных частях функции.
+
+```ts
+function first<T>(items: T[]): T | undefined {
+  return items[0];
 }
 ```
-Задание 2. Полная модель корзины
+
+Если передать массив чисел, `T` станет `number`. Если передать массив строк, `T` станет `string`. Так TypeScript сохраняет связь: какой тип был внутри массива, такой же тип будет у результата.
+
+---
+
+## Практическое задание
+
 ```ts
 type Product = {
   id: number;
-  name: string;
+  title: string;
   price: number;
-  category: string;
 };
 
-type CartItem = {
-  product: Product;
-  quantity: number;
-};
-
-type Coupon = {
-  code: string;
-  discountPercent: number;
-};
-
-type Cart = {
-  items: CartItem[];
-  coupon?: Coupon;
-};
-
-function addItem(cart: Cart, product: Product, quantity: number): Cart {
-  if (quantity < 1) {
-    throw new Error("Количество должно быть не меньше 1");
-  }
-
-  const existingItem = cart.items.find(
-    (item) => item.product.id === product.id
-  );
-
-  if (existingItem) {
-    return {
-      ...cart,
-      items: cart.items.map((item) =>
-        item.product.id === product.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item
-      ),
-    };
-  }
-
-  return {
-    ...cart,
-    items: [...cart.items, { product, quantity }],
-  };
-}
-
-function removeItem(cart: Cart, productId: number): Cart {
-  return {
-    ...cart,
-    items: cart.items.filter((item) => item.product.id !== productId),
-  };
-}
-
-function updateQuantity(cart: Cart, productId: number, quantity: number): Cart {
-  if (quantity <= 0) {
-    return removeItem(cart, productId);
-  }
-
-  return {
-    ...cart,
-    items: cart.items.map((item) =>
-      item.product.id === productId ? { ...item, quantity } : item
-    ),
-  };
-}
-
-function applyCoupon(cart: Cart, coupon: Coupon): Cart {
-  if (coupon.discountPercent < 0 || coupon.discountPercent > 100) {
-    throw new Error("Скидка должна быть от 0 до 100");
-  }
-
-  return {
-    ...cart,
-    coupon,
-  };
-}
-
-function calculateTotal(cart: Cart): number {
-  const subtotal = cart.items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
-
-  if (!cart.coupon) {
-    return subtotal;
-  }
-
-  const discount = (subtotal * cart.coupon.discountPercent) / 100;
-  return subtotal - discount;
-}
+const products: Product[] = [
+  {
+    id: 1,
+    title: "Клавиатура",
+    price: 4500,
+  },
+  {
+    id: 2,
+    title: "Монитор",
+    price: 18_000,
+  },
+  {
+    id: 3,
+    title: "Ноутбук",
+    price: 85_000,
+  },
+  {
+    id: 4,
+    title: "Мышь",
+    price: 2500,
+  },
+];
 ```
-Дополнительное задание (состояния корзины)
+
+### Задание 1. Необязательный параметр
+
 ```ts
-type CartState =
-  | { status: "empty" }
-  | { status: "active"; items: CartItem[]; coupon?: Coupon }
-  | { status: "checkout"; items: CartItem[]; coupon?: Coupon; deliveryAddress: string };
+function formatProduct(product: Product, currency = "RUB"): string {
+  return `${product.title} — ${product.price} ${currency}`;
+}
 
-function addItemToState(
-  state: CartState,
-  product: Product,
-  quantity: number
-): CartState {
-  if (state.status === "checkout") {
-    throw new Error("Нельзя изменять корзину после оформления");
+const formattedKeyboard = formatProduct(products[0]!);
+const formattedMonitor = formatProduct(products[1]!, "USD");
+
+console.log(formattedKeyboard);
+console.log(formattedMonitor);
+```
+
+### Задание 2. Callback-функция
+
+```ts
+function filterProducts(
+  products: Product[],
+  predicate: (product: Product) => boolean,
+): Product[] {
+  return products.filter(predicate);
+}
+
+const expensiveProducts = filterProducts(products, (product) => {
+  return product.price > 10_000;
+});
+
+const cheapProducts = filterProducts(products, (product) => {
+  return product.price < 5_000;
+});
+
+console.log(expensiveProducts);
+console.log(cheapProducts);
+```
+
+### Задание 3. Перегрузка
+
+```ts
+function findProduct(id: number): Product | undefined;
+function findProduct(title: string): Product | undefined;
+
+function findProduct(value: number | string): Product | undefined {
+  if (typeof value === "number") {
+    return products.find((product) => product.id === value);
   }
 
-  if (state.status === "empty") {
-    return {
-      status: "active",
-      items: [{ product, quantity }],
-    };
-  }
+  return products.find((product) => product.title === value);
+}
 
-  const existingItem = state.items.find(
-    (item) => item.product.id === product.id
-  );
+const productById = findProduct(2);
+const productByTitle = findProduct("Монитор");
 
-  if (existingItem) {
-    return {
-      ...state,
-      items: state.items.map((item) =>
-        item.product.id === product.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item
-      ),
-    };
-  }
+console.log(productById);
+console.log(productByTitle);
+```
 
+### Задание 4. Параметр-объект
+
+```ts
+type CreateProductInput = {
+  title: string;
+  price: number;
+};
+
+function createProduct(input: CreateProductInput): Product {
   return {
-    ...state,
-    items: [...state.items, { product, quantity }],
+    id: Date.now(),
+    title: input.title,
+    price: input.price,
   };
 }
 
-function checkout(state: CartState, deliveryAddress: string): CartState {
-  if (state.status === "empty") {
-    throw new Error("Нельзя оформить пустую корзину");
+const newProduct = createProduct({
+  title: "Веб-камера",
+  price: 7000,
+});
+
+console.log(newProduct);
+```
+
+### Задание 5. Дженерик
+
+```ts
+function first<T>(items: T[]): T | undefined {
+  return items[0];
+}
+
+const firstNumber = first([10, 20, 30]);
+const firstName = first(["Анна", "Борис"]);
+const firstProduct = first(products);
+
+console.log(firstNumber);
+console.log(firstName);
+console.log(firstProduct);
+```
+
+TypeScript автоматически определяет типы:
+
+```ts
+const firstNumber: number | undefined;
+const firstName: string | undefined;
+const firstProduct: Product | undefined;
+```
+
+---
+
+## Полный код одним блоком
+
+```ts
+type Product = {
+  id: number;
+  title: string;
+  price: number;
+};
+
+const products: Product[] = [
+  {
+    id: 1,
+    title: "Клавиатура",
+    price: 4500,
+  },
+  {
+    id: 2,
+    title: "Монитор",
+    price: 18_000,
+  },
+  {
+    id: 3,
+    title: "Ноутбук",
+    price: 85_000,
+  },
+  {
+    id: 4,
+    title: "Мышь",
+    price: 2500,
+  },
+];
+
+function formatProduct(product: Product, currency = "RUB"): string {
+  return `${product.title} — ${product.price} ${currency}`;
+}
+
+function filterProducts(
+  products: Product[],
+  predicate: (product: Product) => boolean,
+): Product[] {
+  return products.filter(predicate);
+}
+
+function findProduct(id: number): Product | undefined;
+function findProduct(title: string): Product | undefined;
+
+function findProduct(value: number | string): Product | undefined {
+  if (typeof value === "number") {
+    return products.find((product) => product.id === value);
   }
 
-  if (state.status === "checkout") {
-    throw new Error("Корзина уже оформлена");
-  }
+  return products.find((product) => product.title === value);
+}
 
+type CreateProductInput = {
+  title: string;
+  price: number;
+};
+
+function createProduct(input: CreateProductInput): Product {
   return {
-    status: "checkout",
-    items: state.items,
-    coupon: state.coupon,
-    deliveryAddress,
+    id: Date.now(),
+    title: input.title,
+    price: input.price,
   };
 }
 
-function calculateTotalForState(state: CartState): number {
-  if (state.status === "empty") {
-    return 0;
-  }
-
-  const subtotal = state.items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
-
-  if (!state.coupon) {
-    return subtotal;
-  }
-
-  const discount = (subtotal * state.coupon.discountPercent) / 100;
-  return subtotal - discount;
+function first<T>(items: T[]): T | undefined {
+  return items[0];
 }
+
+const formattedKeyboard = formatProduct(products[0]!);
+const formattedMonitor = formatProduct(products[1]!, "USD");
+
+const expensiveProducts = filterProducts(products, (product) => {
+  return product.price > 10_000;
+});
+
+const cheapProducts = filterProducts(products, (product) => {
+  return product.price < 5_000;
+});
+
+const productById = findProduct(2);
+const productByTitle = findProduct("Монитор");
+
+const newProduct = createProduct({
+  title: "Веб-камера",
+  price: 7000,
+});
+
+const firstNumber = first([10, 20, 30]);
+const firstName = first(["Анна", "Борис"]);
+const firstProduct = first(products);
+
+console.log(formattedKeyboard);
+console.log(formattedMonitor);
+console.log(expensiveProducts);
+console.log(cheapProducts);
+console.log(productById);
+console.log(productByTitle);
+console.log(newProduct);
+console.log(firstNumber);
+console.log(firstName);
+console.log(firstProduct);
 ```
