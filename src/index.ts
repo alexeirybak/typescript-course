@@ -1,55 +1,38 @@
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-};
-
-type OrderItem = {
-  product: Product;
-  quantity: number;
-};
-
-type Delivery =
-  | { method: "courier"; address: string; price: number }
-  | { method: "pickup"; pickupPointId: number; price: 0 };
-
-type Order = {
-  id: number;
-  status: "draft" | "paid" | "cancelled";
-  items: OrderItem[];
-  delivery: Delivery;
-  promocode?: string;
-};
-
-function calculateItemsTotal(items: OrderItem[]): number {
-  return items.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0,
-  );
+function firstUnknown(items: unknown[]): unknown {
+  return items[0];
 }
 
-function calculateOrderTotal(order: Order): number {
-  return calculateItemsTotal(order.items) + order.delivery.price;
+const value = firstUnknown(["Анна", "Борис"]);
+
+// function firstAny(items: any[]): any {
+//   return items[0];
+// }
+
+// const unsafe = firstAny(["Анна"]);
+// unsafe.nonExistingMethod();
+
+function first<T>(items: readonly T[]): T | undefined {
+  return items[0];
 }
 
-const order: Order = {
-  id: 101,
-  status: "draft",
-  items: [
-    {
-      product: {
-        id: 1,
-        title: "Клавиатура",
-        price: 7500,
-      },
-      quantity: 2,
-    },
-  ],
-  delivery: {
-    method: "courier",
-    address: "Москва, ул. Примерная, 1",
-    price: 500,
-  },
-};
+const firstName = first(["Анна", "Борис"]);
 
-console.log(calculateOrderTotal(order));
+const maybeName = first<string>([]);
+
+function pair<TFirst, TSecond>(
+  first: TFirst,
+  second: TSecond,
+): [TFirst, TSecond] {
+  return [first, second];
+}
+
+const entry = pair("age", 30);
+
+function mapArray<TInput, TOutput>(
+  items: readonly TInput[],
+  transform: (item: TInput, index: number) => TOutput,
+): TOutput[] {
+  return items.map(transform);
+}
+
+const lengths = mapArray(["TypeScript", "React"], (word) => word.length);
