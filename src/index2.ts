@@ -1,29 +1,31 @@
-// const amount: number = 1250;
+// type User = {
+//   readonly id: number;
+//   name: string;
+//   readonly createdAt: Date;
+// };
 
-// function formatMoney(amount: number, currency = "RUB"): string {
-//   return `${amount.toFixed(2)} ${currency}`;
-// }
+// const user: User = {
+//   id: 1,
+//   name: "Анна",
+//   createdAt: new Date(),
+// };
 
-// const defaultMoneyLabel: string = formatMoney(amount);
-// const usdMoneyLabel: string = formatMoney(amount, "USD");
+// user.name = "Анна Петровна";
 
-// console.log(defaultMoneyLabel);
-// console.log(usdMoneyLabel);
+// user.id = 2;
 
-type Currency = "RUB" | "USD" | "EUR";
+// console.log(user.id);
 
-const strictAmount: number = 1250;
-const strictCurrency: Currency = "EUR";
+// type Team = {
+//   readonly members: readonly string[];
+// };
 
-function formatMoneyStrict(amount: number, currency: Currency = "RUB"): string {
-  return `${amount.toFixed(2)} ${currency}`;
-}
+// const team: Team = {
+//   members: ["Анна"],
+// };
 
-const strictDefaultMoneyLabel: string = formatMoneyStrict(strictAmount);
-const strictMoneyLabel: string = formatMoneyStrict(
-  strictAmount,
-  strictCurrency,
-);
+// team.members = ["Борис"];
 
-console.log(strictDefaultMoneyLabel);
-console.log(strictMoneyLabel);
+// team.members.push("Иван");
+
+// console.log(team);

@@ -1,32 +1,45 @@
-const firstNumber: number = 10;
-const secondNumber: number = 20;
-const thirdNumber: number = 30;
+type Cart = {
+  items: string[];
+  add(item: string): void;
+  remove(item: string): boolean;
+};
 
-function sum(...numbers: number[]): number {
-  return numbers.reduce((total, number) => total + number, 0);
-}
+const cart: Cart = {
+  items: [],
 
-const total: number = sum(firstNumber, secondNumber, thirdNumber);
+  add(item) {
+    this.items.push(item);
+  },
 
-console.log(total);
+  remove(item) {
+    const index = this.items.indexOf(item);
 
-const rangeStart: number = 1;
-const rangeEnd: number = 10;
-const rangeStep: number = 2;
+    if (index === -1) {
+      return false;
+    }
 
-function createRange(
-  ...args: [start: number, end: number, step?: number]
-): number[] {
-  const [start, end, step = 1] = args;
-  const result: number[] = [];
+    this.items.splice(index, 1);
+    return true;
+  },
+};
 
-  for (let current = start; current <= end; current += step) {
-    result.push(current);
-  }
+cart.add("Книга");
+const removed = cart.remove("Книга");
+const removedAgain = cart.remove("Книга");
 
-  return result;
-}
+console.log(removed);
+console.log(removedAgain);
 
-const range: number[] = createRange(rangeStart, rangeEnd, rangeStep);
+// onClick: (event: MouseEvent) => void;
 
-console.log(range);
+// type ButtonProps = {
+//   label: string;
+//   onClick: () => void;
+// };
+
+
+// type Cart = {
+//   items: string[];
+//   add(item: string): void;
+//   remove(item: string): boolean;
+// };
