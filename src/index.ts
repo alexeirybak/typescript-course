@@ -1,19 +1,38 @@
-class BankAccount {
-  owner: string;
-  balance: number;
-
-  constructor(owner: string, initialBalance: number) {
-    this.owner = owner;
-    this.balance = initialBalance;
-  }
-
-  deposit(amount: number): void {
-    this.balance += amount;
-  }
+function firstUnknown(items: unknown[]): unknown {
+  return items[0];
 }
 
-const account = new BankAccount("Анна", -1000);
+const value = firstUnknown(["Анна", "Борис"]);
 
-account.deposit(500);
+// function firstAny(items: any[]): any {
+//   return items[0];
+// }
 
-console.log(account.balance);
+// const unsafe = firstAny(["Анна"]);
+// unsafe.nonExistingMethod();
+
+function first<T>(items: readonly T[]): T | undefined {
+  return items[0];
+}
+
+const firstName = first(["Анна", "Борис"]);
+
+const maybeName = first<string>([]);
+
+function pair<TFirst, TSecond>(
+  first: TFirst,
+  second: TSecond,
+): [TFirst, TSecond] {
+  return [first, second];
+}
+
+const entry = pair("age", 30);
+
+function mapArray<TInput, TOutput>(
+  items: readonly TInput[],
+  transform: (item: TInput, index: number) => TOutput,
+): TOutput[] {
+  return items.map(transform);
+}
+
+const lengths = mapArray(["TypeScript", "React"], (word) => word.length);
