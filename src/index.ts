@@ -1,55 +1,16 @@
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-};
+type Role = "admin" | "editor" | "viewer";
+type Permission = "read" | "write" | "delete";
 
-type OrderItem = {
-  product: Product;
-  quantity: number;
-};
+const permissions = {
+  admin: ["read", "write", "delete"],
+  editor: ["read", "write"],
+  viewer: ["read"],
+} as const satisfies Record<Role, readonly Permission[]>;
 
-type Delivery =
-  | { method: "courier"; address: string; price: number }
-  | { method: "pickup"; pickupPointId: number; price: 0 };
-
-type Order = {
-  id: number;
-  status: "draft" | "paid" | "cancelled";
-  items: OrderItem[];
-  delivery: Delivery;
-  promocode?: string;
-};
-
-function calculateItemsTotal(items: OrderItem[]): number {
-  return items.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0,
-  );
+function hasPermission(role: Role, permission: Permission): boolean {
+  const rolePermissions: readonly Permission[] = permissions[role];
+  return rolePermissions.includes(permission);
 }
 
-function calculateOrderTotal(order: Order): number {
-  return calculateItemsTotal(order.items) + order.delivery.price;
-}
-
-const order: Order = {
-  id: 101,
-  status: "draft",
-  items: [
-    {
-      product: {
-        id: 1,
-        title: "Клавиатура",
-        price: 7500,
-      },
-      quantity: 2,
-    },
-  ],
-  delivery: {
-    method: "courier",
-    address: "Москва, ул. Примерная, 1",
-    price: 500,
-  },
-};
-
-console.log(calculateOrderTotal(order));
+console.log(hasPermission("admin", "delete"));
+console.log(hasPermission("viewer", "delete"));

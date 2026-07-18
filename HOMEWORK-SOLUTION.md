@@ -1,211 +1,278 @@
 ## Ответы на контрольные вопросы для самопроверки
 
-1. Массив хранит любое количество элементов одного типа. Кортеж хранит заранее известное количество элементов, и у каждой позиции может быть свой тип.
-2. Потому что поле с `?` может отсутствовать. Если поля нет, при чтении получится `undefined`.
-3. `??` срабатывает только для `null` и `undefined`, а `||` также срабатывает для `0`, пустой строки и `false`.
-4. Литеральное объединение ограничивает список допустимых строк и помогает поймать опечатки.
-5. Нет. `Money` и `ProductId` как псевдонимы `number` остаются совместимыми.
-6. Сужение типа - это ситуация, когда после проверки TypeScript знает более точный тип значения.
-7. По дискриминирующему полю TypeScript понимает, какой именно вариант объекта перед ним.
-8. Потому что `!` влияет только на проверку TypeScript. Он не добавляет runtime-проверку и не меняет само значение.
+### 1. Почему `unknown` безопаснее, чем `any`?
 
-### Задание 1. Модель оплаты
+`unknown` требует явного сужения типа перед использованием, а `any` отключает все проверки TypeScript.
 
-```ts
-type Customer = {
-  name: string;
-  email: string;
-  phone?: string;
-};
+**Пример:**
 
-type Payment =
-  | { method: "card"; lastFourDigits: string }
-  | { method: "cash"; changeFrom: number }
-  | { method: "bank-transfer"; companyInn: string };
+```typescript
+let unknownValue: unknown = "hello";
+let anyValue: any = "hello";
 
-function formatPayment(payment: Payment): string {
-  if (payment.method === "card") {
-    return `Карта, последние цифры: ${payment.lastFourDigits}`;
-  }
+// any - можно делать что угодно (небезопасно)
+anyValue.toUpperCase(); // работает
+anyValue.foo.bar.baz; // работает, но упадёт в рантайме
 
-  if (payment.method === "cash") {
-    return `Наличные, подготовить сдачу с ${payment.changeFrom}`;
-  }
+// unknown - нельзя использовать без проверки
+unknownValue.toUpperCase(); // Ошибка!
 
-  return `Банковский перевод, ИНН: ${payment.companyInn}`;
+// unknown требует сужения
+if (typeof unknownValue === "string") {
+  unknownValue.toUpperCase(); // теперь безопасно
 }
 ```
-Задание 2. Полная модель корзины
+
+---
+
+### 2. Что такое сужение типа?
+
+Сужение типа (type narrowing) — это процесс, когда TypeScript уточняет тип на основе проверок в коде.
+
+**Пример:**
+
+```typescript
+function process(value: string | number) {
+  if (typeof value === "string") {
+    // Здесь тип: string
+    console.log(value.toUpperCase());
+  } else {
+    // Здесь тип: number
+    console.log(value.toFixed(2));
+  }
+}
+```
+
+**Способы сужения:**
+
+- `typeof`
+- `instanceof`
+- `Array.isArray()`
+- `in` оператор
+- Пользовательские type guards (`is`)
+
+---
+
+### 3. Почему `typeof value === "object"` без проверки на `null` недостаточно?
+
+Потому что `typeof null === "object"` в JavaScript (это исторический баг языка).
+
+```typescript
+const value = null;
+
+if (typeof value === "object") {
+  // Ошибка! null попал в блок для объектов
+  // value.key выдаст ошибку в рантайме
+}
+
+// Правильно:
+if (typeof value === "object" && value !== null) {
+  // Теперь точно объект
+}
+```
+
+---
+
+### 4. Чем `void` отличается от `never`?
+
+4. Чем void отличается от never?
+void:
+Функция завершается без возврата значения
+Возвращает undefined
+Используется для функций без return
+
+never:
+Функция никогда не завершается
+Не возвращает ничего
+Используется для функций, которые бросают ошибку или имеют бесконечный цикл
+
+Пример:
+
 ```ts
+function logMessage(msg: string): void {
+    console.log(msg); // Завершается, но ничего не возвращает
+}
+
+function throwError(msg: string): never {
+    throw new Error(msg); // Никогда не завершится
+}
+
+function infiniteLoop(): never {
+    while (true) {} // Бесконечный цикл
+}
+```
+
+---
+
+### 5. Почему `as Product` не преобразует данные в `Product`?
+
+`as` — это утверждение типа только на уровне TypeScript, оно ничего не делает в рантайме.
+
+```typescript
+type Product = { id: number; title: string; price: number };
+
+const value = "not a product";
+const product = value as Product;
+
+console.log(product); // "not a product" (строка!)
+console.log(product.id); // undefined (ошибка в рантайме)
+```
+
+`as` просто говорит компилятору: "Поверь мне, это Product". JavaScript игнорирует это.
+
+---
+
+### 6. Что даёт `as const`?
+
+`as const` делает объект максимально конкретным.
+
+```typescript
+// Без as const
+const colors = ["red", "green", "blue"];
+// Тип: string[] (широкий)
+
+// С as const
+const colorsConst = ["red", "green", "blue"] as const;
+// Тип: readonly ["red", "green", "blue"] (конкретный кортеж)
+```
+
+**Особенности `as const`:**
+
+1. Все поля становятся `readonly`
+2. Массивы становятся кортежами
+3. Типы становятся литералами
+4. Объекты становятся глубоко `readonly`
+
+---
+
+### 7. Чем `satisfies` отличается от обычной аннотации типа?
+
+`satisfies` проверяет соответствие типу, но сохраняет выведенный тип, а аннотация переопределяет тип.
+
+```typescript
+type RGB = [red: number, green: number, blue: number];
+
+// Аннотация типа (переопределяет тип)
+const color1: RGB = [255, 0, 0];
+
+// satisfies - проверяет, но не меняет тип
+const color2 = [255, 0, 0] as const satisfies RGB;
+// Тип: readonly [255, 0, 0] (максимально конкретный!)
+
+const config = {
+  port: 3000,
+  env: "production",
+} satisfies { port: number; env: string };
+
+config.port; // тип: number (а не { port: number; env: string })
+```
+
+---
+
+## Практическое задание
+
+```typescript
 type Product = {
   id: number;
-  name: string;
+  title: string;
   price: number;
-  category: string;
 };
 
-type CartItem = {
-  product: Product;
-  quantity: number;
-};
+function fail(message: string): never {
+  throw new Error(message);
+}
 
-type Coupon = {
-  code: string;
-  discountPercent: number;
-};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-type Cart = {
-  items: CartItem[];
-  coupon?: Coupon;
-};
-
-function addItem(cart: Cart, product: Product, quantity: number): Cart {
-  if (quantity < 1) {
-    throw new Error("Количество должно быть не меньше 1");
+function parseProduct(value: unknown): Product {
+  if (!isRecord(value)) {
+    return fail("Product должен быть объектом");
   }
 
-  const existingItem = cart.items.find(
-    (item) => item.product.id === product.id
-  );
+  if (typeof value.id !== "number") {
+    return fail("Product.id должен быть числом");
+  }
 
-  if (existingItem) {
-    return {
-      ...cart,
-      items: cart.items.map((item) =>
-        item.product.id === product.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item
-      ),
-    };
+  if (typeof value.title !== "string") {
+    return fail("Product.title должен быть строкой");
+  }
+
+  if (typeof value.price !== "number") {
+    return fail("Product.price должен быть числом");
   }
 
   return {
-    ...cart,
-    items: [...cart.items, { product, quantity }],
+    id: value.id,
+    title: value.title,
+    price: value.price,
   };
 }
 
-function removeItem(cart: Cart, productId: number): Cart {
-  return {
-    ...cart,
-    items: cart.items.filter((item) => item.product.id !== productId),
-  };
+function parseProducts(value: unknown): Product[] {
+  if (!Array.isArray(value)) {
+    return fail("Ожидался массив товаров");
+  }
+
+  return value.map((item, index) => {
+    try {
+      return parseProduct(item);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Неизвестная ошибка";
+      return fail(`Ошибка в товаре с индексом ${index}: ${message}`);
+    }
+  });
 }
 
-function updateQuantity(cart: Cart, productId: number, quantity: number): Cart {
-  if (quantity <= 0) {
-    return removeItem(cart, productId);
-  }
+// ============================================
+// ТЕСТИРОВАНИЕ
+// ============================================
 
-  return {
-    ...cart,
-    items: cart.items.map((item) =>
-      item.product.id === productId ? { ...item, quantity } : item
-    ),
-  };
+// Тест 1: Корректные данные
+const raw1: unknown = JSON.parse(
+  '[{"id":1,"title":"Клавиатура","price":7500},{"id":2,"title":"Мышь","price":2500}]',
+);
+const products1 = parseProducts(raw1);
+console.log("Тест 1 (корректные данные):", products1);
+
+// Тест 2: Некорректный id (строка вместо числа)
+const raw2: unknown = JSON.parse(
+  '[{"id":1,"title":"Клавиатура","price":7500},{"id":"2","title":"Мышь","price":2500}]',
+);
+try {
+  parseProducts(raw2);
+} catch (error) {
+  console.log("Тест 2 (некорректный id):", error.message);
 }
 
-function applyCoupon(cart: Cart, coupon: Coupon): Cart {
-  if (coupon.discountPercent < 0 || coupon.discountPercent > 100) {
-    throw new Error("Скидка должна быть от 0 до 100");
-  }
-
-  return {
-    ...cart,
-    coupon,
-  };
+// Тест 3: Не массив (объект)
+const raw3: unknown = JSON.parse('{"id":1,"title":"Клавиатура","price":7500}');
+try {
+  parseProducts(raw3);
+} catch (error) {
+  console.log("Тест 3 (не массив):", error.message);
 }
 
-function calculateTotal(cart: Cart): number {
-  const subtotal = cart.items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
+// Тест 4: Пустой массив
+const raw4: unknown = JSON.parse("[]");
+const products4 = parseProducts(raw4);
+console.log("Тест 4 (пустой массив):", products4);
 
-  if (!cart.coupon) {
-    return subtotal;
-  }
-
-  const discount = (subtotal * cart.coupon.discountPercent) / 100;
-  return subtotal - discount;
-}
-```
-Дополнительное задание (состояния корзины)
-```ts
-type CartState =
-  | { status: "empty" }
-  | { status: "active"; items: CartItem[]; coupon?: Coupon }
-  | { status: "checkout"; items: CartItem[]; coupon?: Coupon; deliveryAddress: string };
-
-function addItemToState(
-  state: CartState,
-  product: Product,
-  quantity: number
-): CartState {
-  if (state.status === "checkout") {
-    throw new Error("Нельзя изменять корзину после оформления");
-  }
-
-  if (state.status === "empty") {
-    return {
-      status: "active",
-      items: [{ product, quantity }],
-    };
-  }
-
-  const existingItem = state.items.find(
-    (item) => item.product.id === product.id
-  );
-
-  if (existingItem) {
-    return {
-      ...state,
-      items: state.items.map((item) =>
-        item.product.id === product.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item
-      ),
-    };
-  }
-
-  return {
-    ...state,
-    items: [...state.items, { product, quantity }],
-  };
+// Тест 5: Отсутствует поле price
+const raw5: unknown = JSON.parse('[{"id":1,"title":"Клавиатура"}]');
+try {
+  parseProducts(raw5);
+} catch (error) {
+  console.log("Тест 5 (отсутствует поле):", error.message);
 }
 
-function checkout(state: CartState, deliveryAddress: string): CartState {
-  if (state.status === "empty") {
-    throw new Error("Нельзя оформить пустую корзину");
-  }
-
-  if (state.status === "checkout") {
-    throw new Error("Корзина уже оформлена");
-  }
-
-  return {
-    status: "checkout",
-    items: state.items,
-    coupon: state.coupon,
-    deliveryAddress,
-  };
-}
-
-function calculateTotalForState(state: CartState): number {
-  if (state.status === "empty") {
-    return 0;
-  }
-
-  const subtotal = state.items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
-
-  if (!state.coupon) {
-    return subtotal;
-  }
-
-  const discount = (subtotal * state.coupon.discountPercent) / 100;
-  return subtotal - discount;
+// Тест 6: null вместо объекта
+const raw6: unknown = JSON.parse("[null]");
+try {
+  parseProducts(raw6);
+} catch (error) {
+  console.log("Тест 6 (null вместо объекта):", error.message);
 }
 ```
