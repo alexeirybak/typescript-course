@@ -1,1445 +1,1739 @@
-# Решение домашнего задания
-
-Ниже приведено готовое решение домашнего задания по уроку 9.
-
 # Домашнее задание. Решение
 
 ## Контрольные вопросы
 
-### 1. Чем модификатор `private` в TypeScript отличается от приватного поля `#private` в JavaScript?
+### 1. Чем `<T>` отличается от `any`?
 
-Модификатор `private` относится к системе типов TypeScript.
+`any` отключает проверку типов.
 
 ```ts
-class User {
-  private password: string;
-
-  constructor(password: string) {
-    this.password = password;
-  }
+function firstAny(items: any[]): any {
+  return items[0];
 }
+
+const value = firstAny(["Анна", "Борис"]);
+
+value.nonExistingMethod();
 ```
 
-TypeScript запрещает обращаться к полю извне:
+TypeScript разрешит вызвать несуществующий метод, потому что значение имеет тип `any`.
+
+Ошибка обнаружится только во время выполнения программы.
+
+Дженерик сохраняет информацию о конкретном типе:
 
 ```ts
-const user = new User("123456");
-
-// Ошибка TypeScript:
-// console.log(user.password);
-```
-
-Но после компиляции обычное поле JavaScript продолжает существовать в объекте. Ограничение проверяется преимущественно во время компиляции.
-
-Поле с символом `#` является настоящим приватным полем JavaScript:
-
-```ts
-class User {
-  #password: string;
-
-  constructor(password: string) {
-    this.#password = password;
-  }
+function first<T>(
+  items: readonly T[],
+): T | undefined {
+  return items[0];
 }
+
+const value = first(["Анна", "Борис"]);
 ```
 
-Обратиться к нему извне нельзя даже во время выполнения:
+Тип переменной `value`:
 
 ```ts
-const user = new User("123456");
+string | undefined
+```
 
-// Синтаксическая ошибка:
-// console.log(user.#password);
+TypeScript понимает, что в функцию был передан массив строк.
+
+Поэтому вызвать несуществующий метод нельзя:
+
+```ts
+if (value) {
+  console.log(value.toUpperCase());
+
+  // Ошибка TypeScript:
+  // value.nonExistingMethod();
+}
 ```
 
 Основное различие:
 
-* `private` — ограничение системы типов TypeScript;
-* `#private` — механизм приватности самого JavaScript.
+* `any` удаляет информацию о типе и отключает проверки;
+* `<T>` временно обозначает неизвестный тип, который будет определён при использовании функции, класса или интерфейса;
+* дженерик сохраняет связь между входными и выходными типами.
 
 ---
 
-### 2. Что создают parameter properties при использовании модификаторов в параметрах конструктора?
+### 2. Что даёт ограничение `T extends HasId`?
 
-Parameter properties позволяют одновременно:
+Ограничение указывает, каким минимальным требованиям должен соответствовать параметр типа.
 
-1. объявить параметр конструктора;
-2. создать свойство класса;
-3. присвоить свойству переданное значение.
+Создадим тип:
+
+```ts
+type HasId = {
+  id: string | number;
+};
+```
+
+Теперь ограничим параметр типа:
+
+```ts
+function logId<T extends HasId>(
+  value: T,
+): T {
+  console.log(value.id);
+
+  return value;
+}
+```
+
+TypeScript знает, что у значения обязательно существует свойство `id`.
+
+Такой объект передать можно:
+
+```ts
+const product = logId({
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+});
+```
+
+При этом полный тип объекта сохраняется:
+
+```ts
+console.log(product.title);
+console.log(product.price);
+```
+
+Такое значение передать нельзя:
+
+```ts
+// Ошибка TypeScript:
+// logId({
+//   title: "Клавиатура",
+// });
+```
+
+В объекте отсутствует обязательное поле `id`.
+
+Ограничение `T extends HasId`:
+
+* запрещает передавать типы без свойства `id`;
+* позволяет безопасно обращаться к `value.id`;
+* сохраняет остальные свойства конкретного типа;
+* не заменяет тип `T` на `HasId`, а только устанавливает минимальный контракт.
+
+---
+
+### 3. Как связаны `K extends keyof T` и `T[K]`?
+
+`keyof T` создаёт объединение ключей типа `T`.
 
 Например:
 
 ```ts
-class Product {
-  constructor(
-    public readonly id: number,
-    private price: number,
-  ) {}
-}
+type User = {
+  id: number;
+  name: string;
+  active: boolean;
+};
 ```
 
-Эта запись приблизительно эквивалентна следующему коду:
+Выражение:
 
 ```ts
-class Product {
-  public readonly id: number;
-  private price: number;
+keyof User
+```
 
-  constructor(id: number, price: number) {
-    this.id = id;
-    this.price = price;
-  }
+создаёт тип:
+
+```ts
+"id" | "name" | "active"
+```
+
+Ограничение:
+
+```ts
+K extends keyof T
+```
+
+означает, что `K` может быть только существующим ключом объекта.
+
+Конструкция:
+
+```ts
+T[K]
+```
+
+возвращает тип значения, которое находится по выбранному ключу.
+
+```ts
+function getProperty<
+  T,
+  K extends keyof T,
+>(
+  object: T,
+  key: K,
+): T[K] {
+  return object[key];
 }
 ```
 
-Parameter properties уменьшают количество повторяющегося кода.
+Использование:
+
+```ts
+const user: User = {
+  id: 1,
+  name: "Анна",
+  active: true,
+};
+
+const name = getProperty(user, "name");
+const active = getProperty(user, "active");
+```
+
+Типы результатов:
+
+```ts
+// name: string
+// active: boolean
+```
+
+Связь выглядит так:
+
+* `T` — тип объекта;
+* `keyof T` — все допустимые ключи объекта;
+* `K` — конкретный выбранный ключ;
+* `T[K]` — тип значения по этому ключу.
 
 ---
 
-### 3. В каких случаях getter уместнее обычного метода?
+### 4. Когда параметр типа не нужен?
 
-Getter подходит, когда значение воспринимается как свойство объекта.
+Параметр типа не нужен, если он не сохраняет связь между несколькими частями контракта.
 
 Например:
 
 ```ts
-class Rectangle {
-  constructor(
-    private width: number,
-    private height: number,
-  ) {}
-
-  get area(): number {
-    return this.width * this.height;
-  }
+function length<
+  T extends { length: number },
+>(
+  value: T,
+): number {
+  return value.length;
 }
-
-const rectangle = new Rectangle(10, 5);
-
-console.log(rectangle.area);
 ```
 
-Площадь выглядит как характеристика прямоугольника, поэтому getter здесь уместен.
+Параметр `T` используется только в одном месте.
 
-Обычный метод лучше использовать, когда выполняется действие:
+Функция не возвращает `T` и не связывает его с другим аргументом.
+
+Поэтому дженерик можно убрать:
 
 ```ts
-account.withdraw(1000);
-order.cancel();
-task.complete();
+function length(
+  value: { length: number },
+): number {
+  return value.length;
+}
 ```
 
-Такой код яснее показывает, что состояние объекта может измениться.
+Обе функции выполняют одну и ту же задачу.
 
-Практическое правило:
+Параметр типа обычно нужен, когда связывает:
 
-* характеристика или вычисляемое значение — getter;
-* действие или бизнес-операция — метод.
+* аргумент и результат;
+* несколько аргументов;
+* элементы массива и результат преобразования;
+* объект и его ключ;
+* ключ и тип значения;
+* сущность и тип идентификатора.
+
+Если обычный тип решает задачу без потери информации, дженерик добавлять не следует.
 
 ---
 
-### 4. Чем интерфейс отличается от абстрактного класса?
+### 5. Почему `parse<T>` без валидации небезопасен?
 
-Интерфейс описывает контракт объекта:
+Рассмотрим функцию:
 
 ```ts
-interface Repository<T> {
-  save(entity: T): void;
-  findAll(): T[];
+function parse<T>(text: string): T {
+  return JSON.parse(text) as T;
 }
 ```
 
-Он не содержит состояния экземпляра и готовой реализации методов.
+Параметр `T` никак не связан с содержимым строки.
 
-Абстрактный класс может содержать:
-
-* свойства;
-* конструктор;
-* обычные методы с реализацией;
-* абстрактные методы без реализации.
+Вызывающий код может указать любой тип:
 
 ```ts
-abstract class PaymentProcessor {
-  constructor(
-    protected readonly merchantId: string,
-  ) {}
-
-  protected validateAmount(amount: number): void {
-    if (amount <= 0) {
-      throw new Error("Сумма должна быть положительной");
-    }
-  }
-
-  abstract pay(amount: number): Promise<string>;
-}
-```
-
-Кроме того:
-
-* класс может реализовать несколько интерфейсов;
-* наследоваться можно только от одного класса.
-
----
-
-### 5. Для чего используется ограничение дженерика `T extends Entity`?
-
-Ограничение сообщает TypeScript, что тип `T` обязан соответствовать интерфейсу `Entity`.
-
-```ts
-interface Entity {
-  readonly id: number;
-}
-
-class Repository<T extends Entity> {
-  save(entity: T): void {
-    console.log(entity.id);
-  }
-}
-```
-
-Благодаря `T extends Entity` TypeScript знает, что у любого объекта типа `T` есть числовое поле `id`.
-
-Такой тип использовать можно:
-
-```ts
-type Task = {
+type Product = {
   id: number;
   title: string;
 };
+
+const product = parse<Product>("null");
 ```
 
-А такой нельзя:
+TypeScript считает, что переменная `product` содержит `Product`.
+
+Но фактическое значение:
 
 ```ts
-type Category = {
-  title: string;
-};
-
-// Ошибка: отсутствует id
-// new Repository<Category>();
+null
 ```
 
-Ограничение сохраняет универсальность класса, но запрещает передавать неподходящие типы.
-
----
-
-### 6. Зачем при переопределении метода использовать ключевое слово `override`?
-
-Ключевое слово `override` явно показывает, что метод переопределяет метод родительского класса.
+Следующее обращение приведёт к ошибке во время выполнения:
 
 ```ts
-abstract class PaymentProcessor {
-  abstract pay(amount: number): Promise<string>;
+console.log(product.title);
+```
+
+Проблема заключается в утверждении:
+
+```ts
+as T
+```
+
+Оно заставляет TypeScript поверить разработчику, но не проверяет реальные данные.
+
+Безопаснее вернуть `unknown`:
+
+```ts
+function parse(text: string): unknown {
+  return JSON.parse(text);
 }
+```
 
-class CardPaymentProcessor extends PaymentProcessor {
-  override async pay(amount: number): Promise<string> {
-    return `Оплачено: ${amount}`;
+После этого данные необходимо проверить во время выполнения.
+
+Можно также передать функцию валидации:
+
+```ts
+function parseWithValidation<T>(
+  text: string,
+  isValid: (value: unknown) => value is T,
+): T {
+  const value: unknown = JSON.parse(text);
+
+  if (!isValid(value)) {
+    throw new Error(
+      "Структура данных не соответствует ожидаемому типу",
+    );
   }
+
+  return value;
 }
 ```
 
-Это особенно полезно при рефакторинге.
-
----
-
-### 7. Почему композиция часто масштабируется лучше глубокой иерархии наследования?
-
-При наследовании поведение жёстко связывается с иерархией классов.
-
-Например, для разных комбинаций возможностей могут появиться классы:
-
-```text
-EmailNotification
-UrgentEmailNotification
-RetryingEmailNotification
-UrgentRetryingEmailNotification
-```
-
-Чем больше независимых возможностей, тем больше комбинаций и классов.
-
-При композиции объект получает необходимые компоненты через конструктор:
-
-```ts
-class NotificationService {
-  constructor(
-    private readonly sender: Sender,
-    private readonly formatter: Formatter,
-    private readonly retryPolicy: RetryPolicy,
-  ) {}
-}
-```
-
-Теперь отправителя, форматирование и стратегию повторов можно заменять независимо.
-
-Композиция:
-
-* уменьшает связанность;
-* упрощает тестирование;
-* позволяет заменять отдельные компоненты;
-* не требует создавать класс для каждой комбинации поведения.
+Такой вариант связывает `T` с реальной runtime-проверкой.
 
 ---
 
 # Практическое задание
 
-## Задание 1. Класс задачи
+## Задание 1. Модели данных
 
-Сначала создадим тип статуса задачи:
+### Интерфейс `Entity`
+
+Создадим универсальный интерфейс сущности:
 
 ```ts
-type TaskStatus = "todo" | "inProgress" | "done";
+interface Entity<TId> {
+  readonly id: TId;
+}
 ```
 
-Создадим тип снимка задачи:
+Параметр `TId` определяет тип идентификатора.
+
+---
+
+### Интерфейс `Product`
+
+У товара будет числовой идентификатор:
 
 ```ts
-type TaskSnapshot = {
-  id: number;
+interface Product extends Entity<number> {
   title: string;
-  status: TaskStatus;
-  createdAt: string;
+  price: number;
+  categoryId: string;
+  available: boolean;
+}
+```
+
+Поле `categoryId` является строкой, потому что категории будут использовать строковые идентификаторы.
+
+---
+
+### Интерфейс `Category`
+
+У категории будет строковый идентификатор:
+
+```ts
+interface Category extends Entity<string> {
+  title: string;
+  description: string;
+}
+```
+
+Теперь TypeScript различает типы идентификаторов:
+
+```ts
+const product: Product = {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true,
+};
+
+const category: Category = {
+  id: "keyboards",
+  title: "Клавиатуры",
+  description: "Механические и мембранные клавиатуры",
 };
 ```
 
-Снимок является обычным объектом. Он не содержит методов класса, поэтому его можно безопасно преобразовать в JSON.
-
 ---
 
-### Класс `TaskEntity`
+## Задание 2. Generic-класс репозитория
+
+### Класс `Repository`
 
 ```ts
-class TaskEntity {
-  private _status: TaskStatus = "todo";
-
-  constructor(
-    public readonly id: number,
-    private _title: string,
-    public readonly createdAt: Date = new Date(),
-  ) {
-    this._title = TaskEntity.normalizeTitle(_title);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error("Некорректная дата создания задачи");
-    }
-  }
-
-  get title(): string {
-    return this._title;
-  }
-
-  get status(): TaskStatus {
-    return this._status;
-  }
-
-  rename(title: string): void {
-    if (this._status === "done") {
-      throw new Error("Нельзя переименовать завершённую задачу");
-    }
-
-    this._title = TaskEntity.normalizeTitle(title);
-  }
-
-  start(): void {
-    if (this._status !== "todo") {
-      throw new Error(
-        "Начать можно только задачу со статусом todo",
-      );
-    }
-
-    this._status = "inProgress";
-  }
-
-  complete(): void {
-    if (this._status !== "inProgress") {
-      throw new Error(
-        "Завершить можно только задачу со статусом inProgress",
-      );
-    }
-
-    this._status = "done";
-  }
-
-  toSnapshot(): TaskSnapshot {
-    return {
-      id: this.id,
-      title: this._title,
-      status: this._status,
-      createdAt: this.createdAt.toISOString(),
-    };
-  }
-
-  static fromSnapshot(snapshot: TaskSnapshot): TaskEntity {
-    if (
-      !Number.isInteger(snapshot.id) ||
-      snapshot.id <= 0
-    ) {
-      throw new Error(
-        "Идентификатор задачи должен быть положительным целым числом",
-      );
-    }
-
-    if (!TaskEntity.isTaskStatus(snapshot.status)) {
-      throw new Error(
-        `Некорректный статус задачи: ${snapshot.status}`,
-      );
-    }
-
-    const createdAt = new Date(snapshot.createdAt);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error("Некорректная дата создания задачи");
-    }
-
-    const task = new TaskEntity(
-      snapshot.id,
-      snapshot.title,
-      createdAt,
-    );
-
-    task._status = snapshot.status;
-
-    return task;
-  }
-
-  private static normalizeTitle(title: string): string {
-    const normalizedTitle = title.trim();
-
-    if (normalizedTitle === "") {
-      throw new Error("Название задачи обязательно");
-    }
-
-    return normalizedTitle;
-  }
-
-  private static isTaskStatus(
-    value: string,
-  ): value is TaskStatus {
-    return (
-      value === "todo" ||
-      value === "inProgress" ||
-      value === "done"
-    );
-  }
-}
-```
-
----
-
-### Разбор класса
-
-Поле статуса закрыто от внешнего кода:
-
-```ts
-private _status: TaskStatus = "todo";
-```
-
-Поэтому выполнить прямое присваивание нельзя:
-
-```ts
-const task = new TaskEntity(1, "Изучить классы");
-
-// Ошибка TypeScript:
-// task._status = "done";
-```
-
-Статус изменяется только через методы:
-
-```ts
-task.start();
-task.complete();
-```
-
-Каждый метод проверяет допустимость перехода.
-
----
-
-Название также является приватным:
-
-```ts
-private _title: string
-```
-
-Для чтения используются getter:
-
-```ts
-console.log(task.title);
-console.log(task.status);
-```
-
-Для изменения названия используется метод:
-
-```ts
-task.rename("Изучить композицию");
-```
-
----
-
-Метод `toSnapshot()` возвращает обычный объект:
-
-```ts
-const snapshot = task.toSnapshot();
-
-console.log(snapshot);
-```
-
-Результат:
-
-```text
-{
-  id: 1,
-  title: "Изучить композицию",
-  status: "done",
-  createdAt: "2026-07-15T10:00:00.000Z"
-}
-```
-
----
-
-Статический метод восстанавливает экземпляр класса:
-
-```ts
-const restoredTask = TaskEntity.fromSnapshot(snapshot);
-
-console.log(restoredTask.title);
-console.log(restoredTask.status);
-```
-
-Восстановленный объект снова имеет методы класса:
-
-```ts
-restoredTask.rename;
-restoredTask.start;
-restoredTask.complete;
-```
-
-Однако вызвать некоторые методы может быть нельзя из-за текущего статуса задачи.
-
----
-
-### Проверка первого задания
-
-```ts
-const firstTask = new TaskEntity(
-  1,
-  "  Изучить классы  ",
-);
-
-console.log(firstTask.title);
-console.log(firstTask.status);
-
-firstTask.rename("Изучить инварианты");
-firstTask.start();
-firstTask.complete();
-
-console.log(firstTask.toSnapshot());
-```
-
-Результат:
-
-```text
-Изучить классы
-todo
-{
-  id: 1,
-  title: "Изучить инварианты",
-  status: "done",
-  createdAt: "..."
-}
-```
-
-Попробуем выполнить запрещённую операцию:
-
-```ts
-try {
-  firstTask.start();
-} catch (error) {
-  if (error instanceof Error) {
-    console.log(error.message);
-  }
-}
-```
-
-Результат:
-
-```text
-Начать можно только задачу со статусом todo
-```
-
-Экспортируем задачу в JSON:
-
-```ts
-const json = JSON.stringify(
-  firstTask.toSnapshot(),
-  null,
-  2,
-);
-
-console.log(json);
-```
-
-Восстановим задачу:
-
-```ts
-const parsedSnapshot: TaskSnapshot =
-  JSON.parse(json);
-
-const restoredTask =
-  TaskEntity.fromSnapshot(parsedSnapshot);
-
-console.log(restoredTask instanceof TaskEntity);
-console.log(restoredTask.title);
-console.log(restoredTask.status);
-```
-
-Результат:
-
-```text
-true
-Изучить инварианты
-done
-```
-
----
-
-## Задание 2. Репозиторий и сервис
-
-### Общий интерфейс сущности
-
-```ts
-interface Entity {
-  readonly id: number;
-}
-```
-
-Класс `TaskEntity` уже соответствует этому интерфейсу, потому что у него есть поле:
-
-```ts
-public readonly id: number
-```
-
-TypeScript использует структурную типизацию, поэтому писать `implements Entity` необязательно.
-
----
-
-### Интерфейс репозитория
-
-```ts
-interface Repository<T extends Entity> {
-  save(entity: T): void;
-  findById(id: number): T | undefined;
-  findAll(): T[];
-  remove(id: number): boolean;
-}
-```
-
-Интерфейс описывает только контракт хранилища.
-
-Он не определяет, где именно будут храниться данные:
-
-* в памяти;
-* в базе данных;
-* в файле;
-* на удалённом сервере.
-
----
-
-### Реализация `InMemoryRepository`
-
-```ts
-class InMemoryRepository<T extends Entity>
-  implements Repository<T>
-{
-  private readonly items = new Map<number, T>();
-
-  save(entity: T): void {
+class Repository<
+  TEntity extends Entity<TId>,
+  TId = string,
+> {
+  private readonly items =
+    new Map<TId, TEntity>();
+
+  save(entity: TEntity): void {
     this.items.set(entity.id, entity);
   }
 
-  findById(id: number): T | undefined {
+  findById(id: TId): TEntity | undefined {
     return this.items.get(id);
   }
 
-  findAll(): T[] {
+  findAll(): TEntity[] {
     return [...this.items.values()];
   }
 
-  remove(id: number): boolean {
+  remove(id: TId): boolean {
     return this.items.delete(id);
   }
+
+  has(id: TId): boolean {
+    return this.items.has(id);
+  }
 }
 ```
 
-Метод `save` добавляет новый объект или заменяет существующий объект с тем же идентификатором:
+Параметр:
 
 ```ts
-save(entity: T): void {
-  this.items.set(entity.id, entity);
-}
+TEntity
 ```
 
-Метод `findById` может вернуть объект или `undefined`:
+определяет тип хранимой сущности.
+
+Параметр:
 
 ```ts
-findById(id: number): T | undefined {
-  return this.items.get(id);
-}
+TId
 ```
 
-Метод `findAll` создаёт новый массив:
+определяет тип идентификатора.
+
+Ограничение:
 
 ```ts
-findAll(): T[] {
-  return [...this.items.values()];
-}
+TEntity extends Entity<TId>
+```
+
+гарантирует наличие у сущности свойства `id` правильного типа.
+
+---
+
+### Репозиторий товаров
+
+```ts
+const productRepository =
+  new Repository<Product, number>();
+```
+
+Здесь:
+
+```text
+TEntity = Product
+TId = number
+```
+
+Сохраним товары:
+
+```ts
+productRepository.save({
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true,
+});
+
+productRepository.save({
+  id: 2,
+  title: "Мышь",
+  price: 3500,
+  categoryId: "mice",
+  available: true,
+});
+```
+
+Найти товар можно только по числовому идентификатору:
+
+```ts
+const foundProduct =
+  productRepository.findById(1);
+```
+
+Строковый идентификатор не подойдёт:
+
+```ts
+// Ошибка TypeScript:
+// productRepository.findById("1");
 ```
 
 ---
 
-### Проверка снимка во время выполнения
-
-После `JSON.parse()` TypeScript не знает реальную структуру данных.
-
-Поэтому добавим runtime-проверку.
+### Репозиторий категорий
 
 ```ts
-function isRecord(
-  value: unknown,
-): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+const categoryRepository =
+  new Repository<Category>();
+```
+
+Второй параметр не указан, поэтому используется значение по умолчанию:
+
+```ts
+TId = string
+```
+
+Сохраним категории:
+
+```ts
+categoryRepository.save({
+  id: "keyboards",
+  title: "Клавиатуры",
+  description:
+    "Механические и мембранные клавиатуры",
+});
+
+categoryRepository.save({
+  id: "mice",
+  title: "Компьютерные мыши",
+  description:
+    "Проводные и беспроводные мыши",
+});
+```
+
+Поиск выполняется по строковому идентификатору:
+
+```ts
+const foundCategory =
+  categoryRepository.findById("keyboards");
+```
+
+Число передать нельзя:
+
+```ts
+// Ошибка TypeScript:
+// categoryRepository.findById(1);
+```
+
+---
+
+### Проверка методов репозитория
+
+```ts
+console.log(
+  productRepository.has(1),
+);
+
+console.log(
+  productRepository.findById(1),
+);
+
+console.log(
+  productRepository.findAll(),
+);
+
+console.log(
+  productRepository.remove(2),
+);
+
+console.log(
+  productRepository.has(2),
+);
+```
+
+---
+
+## Задание 3. Универсальные функции работы с объектами
+
+### Функция получения свойства
+
+```ts
+function getProperty<
+  T,
+  K extends keyof T,
+>(
+  object: T,
+  key: K,
+): T[K] {
+  return object[key];
 }
 ```
 
-Проверим допустимый статус:
+Использование:
 
 ```ts
-function isTaskStatus(
-  value: unknown,
-): value is TaskStatus {
-  return (
-    value === "todo" ||
-    value === "inProgress" ||
-    value === "done"
+const currentProduct: Product = {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true,
+};
+
+const productTitle = getProperty(
+  currentProduct,
+  "title",
+);
+
+const productPrice = getProperty(
+  currentProduct,
+  "price",
+);
+
+const productAvailable = getProperty(
+  currentProduct,
+  "available",
+);
+```
+
+Полученные типы:
+
+```ts
+// productTitle: string
+// productPrice: number
+// productAvailable: boolean
+```
+
+Несуществующий ключ использовать нельзя:
+
+```ts
+// Ошибка TypeScript:
+// getProperty(currentProduct, "discount");
+```
+
+---
+
+### Функция обновления свойства
+
+```ts
+function setProperty<
+  T,
+  K extends keyof T,
+>(
+  object: T,
+  key: K,
+  value: T[K],
+): T {
+  return {
+    ...object,
+    [key]: value,
+  };
+}
+```
+
+Изменим цену:
+
+```ts
+const productWithNewPrice =
+  setProperty(
+    currentProduct,
+    "price",
+    6990,
+  );
+```
+
+Изменим доступность:
+
+```ts
+const unavailableProduct =
+  setProperty(
+    currentProduct,
+    "available",
+    false,
+  );
+```
+
+Изменим название:
+
+```ts
+const renamedProduct =
+  setProperty(
+    currentProduct,
+    "title",
+    "Игровая клавиатура",
+  );
+```
+
+Передать значение неправильного типа нельзя:
+
+```ts
+// Ошибка TypeScript:
+// setProperty(
+//   currentProduct,
+//   "price",
+//   "6990",
+// );
+```
+
+```ts
+// Ошибка TypeScript:
+// setProperty(
+//   currentProduct,
+//   "available",
+//   "да",
+// );
+```
+
+Исходный объект не изменяется:
+
+```ts
+console.log(currentProduct.price);
+console.log(productWithNewPrice.price);
+```
+
+Результат:
+
+```text
+7500
+6990
+```
+
+---
+
+## Задание 4. Универсальный тип ответа API
+
+### Успешный ответ
+
+```ts
+type ApiSuccess<TData> = {
+  status: "success";
+  data: TData;
+};
+```
+
+### Ответ с ошибкой
+
+```ts
+type ApiFailure = {
+  status: "error";
+  message: string;
+  code: number;
+};
+```
+
+### Общий тип ответа
+
+```ts
+type ApiResponse<TData> =
+  | ApiSuccess<TData>
+  | ApiFailure;
+```
+
+Поле `status` является дискриминатором.
+
+По нему TypeScript сможет определить конкретный вариант ответа.
+
+---
+
+### Ответ со списком товаров
+
+```ts
+const productsResponse:
+  ApiResponse<Product[]> = {
+    status: "success",
+    data: [
+      {
+        id: 1,
+        title: "Клавиатура",
+        price: 7500,
+        categoryId: "keyboards",
+        available: true,
+      },
+      {
+        id: 2,
+        title: "Мышь",
+        price: 3500,
+        categoryId: "mice",
+        available: false,
+      },
+    ],
+  };
+```
+
+---
+
+### Ответ со списком категорий
+
+```ts
+const categoriesResponse:
+  ApiResponse<Category[]> = {
+    status: "success",
+    data: [
+      {
+        id: "keyboards",
+        title: "Клавиатуры",
+        description:
+          "Механические и мембранные клавиатуры",
+      },
+      {
+        id: "mice",
+        title: "Компьютерные мыши",
+        description:
+          "Проводные и беспроводные мыши",
+      },
+    ],
+  };
+```
+
+---
+
+### Ответ с ошибкой
+
+```ts
+const errorResponse:
+  ApiResponse<Product[]> = {
+    status: "error",
+    message:
+      "Не удалось загрузить каталог товаров",
+    code: 500,
+  };
+```
+
+---
+
+### Обработка ответа
+
+```ts
+function printApiResponse<T>(
+  response: ApiResponse<T>,
+): void {
+  if (response.status === "success") {
+    console.log(response.data);
+    return;
+  }
+
+  console.log(
+    `Ошибка ${response.code}: ${response.message}`,
   );
 }
 ```
 
-Теперь проверим снимок целиком:
+Использование:
 
 ```ts
-function isTaskSnapshot(
-  value: unknown,
-): value is TaskSnapshot {
-  return (
-    isRecord(value) &&
-    typeof value.id === "number" &&
-    Number.isInteger(value.id) &&
-    value.id > 0 &&
-    typeof value.title === "string" &&
-    isTaskStatus(value.status) &&
-    typeof value.createdAt === "string"
+printApiResponse(productsResponse);
+printApiResponse(categoriesResponse);
+printApiResponse(errorResponse);
+```
+
+---
+
+## Задание 5. Generic-класс кэша
+
+### Класс `Cache`
+
+Добавим в начало файла:
+
+```ts
+export {};
+```
+
+Это превращает файл в модуль и предотвращает возможный конфликт с глобальным браузерным интерфейсом `Cache`.
+
+Теперь реализуем собственный класс:
+
+```ts
+class Cache<TKey, TValue> {
+  private readonly items =
+    new Map<TKey, TValue>();
+
+  set(
+    key: TKey,
+    value: TValue,
+  ): void {
+    this.items.set(key, value);
+  }
+
+  get(
+    key: TKey,
+  ): TValue | undefined {
+    return this.items.get(key);
+  }
+
+  delete(key: TKey): boolean {
+    return this.items.delete(key);
+  }
+
+  has(key: TKey): boolean {
+    return this.items.has(key);
+  }
+
+  getOrSet(
+    key: TKey,
+    factory: () => TValue,
+  ): TValue {
+    const existingValue =
+      this.items.get(key);
+
+    if (existingValue !== undefined) {
+      return existingValue;
+    }
+
+    const newValue = factory();
+
+    this.items.set(key, newValue);
+
+    return newValue;
+  }
+}
+```
+
+---
+
+### Кэш товаров
+
+```ts
+const productCache =
+  new Cache<number, Product>();
+```
+
+Сохраним товар:
+
+```ts
+productCache.set(1, {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true,
+});
+```
+
+Получим товар:
+
+```ts
+const cachedProduct =
+  productCache.get(1);
+```
+
+Тип результата:
+
+```ts
+Product | undefined
+```
+
+Поэтому отсутствие значения необходимо учитывать:
+
+```ts
+if (cachedProduct) {
+  console.log(cachedProduct.title);
+}
+```
+
+---
+
+### Метод `getOrSet`
+
+```ts
+const productFromCache =
+  productCache.getOrSet(
+    2,
+    () => ({
+      id: 2,
+      title: "Мышь",
+      price: 3500,
+      categoryId: "mice",
+      available: true,
+    }),
   );
-}
+```
+
+Если ключ `2` уже существует, фабрика не вызывается.
+
+Если ключ отсутствует:
+
+1. вызывается функция-фабрика;
+2. создаётся значение;
+3. значение помещается в кэш;
+4. значение возвращается из метода.
+
+---
+
+### Кэш строковых значений
+
+Один и тот же класс можно использовать с другими типами:
+
+```ts
+const settingsCache =
+  new Cache<string, boolean>();
+
+settingsCache.set("darkMode", true);
+
+console.log(
+  settingsCache.get("darkMode"),
+);
+```
+
+Ключ имеет тип `string`, а значение — `boolean`.
+
+---
+
+## Задание 6. Параметры типов по умолчанию
+
+### Стандартная метаинформация
+
+```ts
+type DefaultPaginationMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+```
+
+### Универсальный постраничный ответ
+
+```ts
+type PaginatedResponse<
+  TItem,
+  TMeta = DefaultPaginationMeta,
+> = {
+  items: TItem[];
+  meta: TMeta;
+};
+```
+
+Параметр `TItem` является обязательным.
+
+Параметр `TMeta` имеет значение по умолчанию:
+
+```ts
+DefaultPaginationMeta
 ```
 
 ---
 
-### Класс `TaskService`
+### Стандартная пагинация
 
 ```ts
-class TaskService {
-  private static nextId = 1;
-
-  constructor(
-    private readonly repository:
-      Repository<TaskEntity>,
-  ) {}
-
-  create(title: string): TaskEntity {
-    const task = new TaskEntity(
-      TaskService.nextId,
-      title,
-    );
-
-    TaskService.nextId += 1;
-
-    this.repository.save(task);
-
-    return task;
-  }
-
-  findById(id: number): TaskEntity {
-    const task = this.repository.findById(id);
-
-    if (!task) {
-      throw new Error(`Задача с id ${id} не найдена`);
-    }
-
-    return task;
-  }
-
-  findAll(): TaskEntity[] {
-    return this.repository.findAll();
-  }
-
-  rename(id: number, title: string): void {
-    const task = this.findById(id);
-
-    task.rename(title);
-    this.repository.save(task);
-  }
-
-  start(id: number): void {
-    const task = this.findById(id);
-
-    task.start();
-    this.repository.save(task);
-  }
-
-  complete(id: number): void {
-    const task = this.findById(id);
-
-    task.complete();
-    this.repository.save(task);
-  }
-
-  remove(id: number): boolean {
-    return this.repository.remove(id);
-  }
-
-  exportToJson(): string {
-    const snapshots = this.repository
-      .findAll()
-      .map((task) => task.toSnapshot());
-
-    return JSON.stringify(snapshots, null, 2);
-  }
-
-  importFromJson(json: string): void {
-    let parsedValue: unknown;
-
-    try {
-      parsedValue = JSON.parse(json);
-    } catch {
-      throw new Error("Передана некорректная JSON-строка");
-    }
-
-    if (!Array.isArray(parsedValue)) {
-      throw new Error(
-        "JSON должен содержать массив задач",
-      );
-    }
-
-    const restoredTasks: TaskEntity[] = [];
-
-    for (const value of parsedValue) {
-      if (!isTaskSnapshot(value)) {
-        throw new Error(
-          `Некорректный снимок задачи: ${JSON.stringify(value)}`,
-        );
-      }
-
-      restoredTasks.push(
-        TaskEntity.fromSnapshot(value),
-      );
-    }
-
-    for (const task of restoredTasks) {
-      this.repository.save(task);
-    }
-
-    const maximumId = restoredTasks.reduce(
-      (maximum, task) => Math.max(maximum, task.id),
-      0,
-    );
-
-    TaskService.nextId = Math.max(
-      TaskService.nextId,
-      maximumId + 1,
-    );
-  }
-}
+type ProductPage =
+  PaginatedResponse<Product>;
 ```
+
+Создадим страницу товаров:
+
+```ts
+const productPage: ProductPage = {
+  items: [
+    {
+      id: 1,
+      title: "Клавиатура",
+      price: 7500,
+      categoryId: "keyboards",
+      available: true,
+    },
+    {
+      id: 2,
+      title: "Мышь",
+      price: 3500,
+      categoryId: "mice",
+      available: true,
+    },
+  ],
+  meta: {
+    page: 1,
+    pageSize: 10,
+    total: 2,
+    totalPages: 1,
+  },
+};
+```
+
+Поскольку второй параметр не передан, используется стандартный тип метаданных.
 
 ---
 
-### Почему сервис использует композицию?
+### Собственная структура метаданных
 
-Репозиторий передаётся в конструктор:
-
-```ts
-constructor(
-  private readonly repository:
-    Repository<TaskEntity>,
-) {}
-```
-
-`TaskService` не наследуется от `InMemoryRepository`.
-
-Неправильный вариант выглядел бы так:
+Некоторые API используют курсор вместо номера страницы.
 
 ```ts
-// Так делать не нужно:
-class TaskService
-  extends InMemoryRepository<TaskEntity> {}
+type CursorPaginationMeta = {
+  nextCursor: string | null;
+  hasMore: boolean;
+};
 ```
 
-Сервис не является разновидностью репозитория.
-
-Сервис использует репозиторий для хранения данных. Поэтому между ними отношение композиции.
-
-Благодаря интерфейсу реализацию можно заменить:
+Передадим собственный тип:
 
 ```ts
-const repository =
-  new InMemoryRepository<TaskEntity>();
-
-const service = new TaskService(repository);
+type CursorProductPage =
+  PaginatedResponse<
+    Product,
+    CursorPaginationMeta
+  >;
 ```
 
-В будущем вместо `InMemoryRepository` можно передать другую реализацию:
+Создадим значение:
 
 ```ts
-// const repository = new MongoTaskRepository();
-// const service = new TaskService(repository);
+const cursorProductPage:
+  CursorProductPage = {
+    items: [
+      {
+        id: 3,
+        title: "Монитор",
+        price: 32000,
+        categoryId: "monitors",
+        available: true,
+      },
+    ],
+    meta: {
+      nextCursor: "product-3",
+      hasMore: true,
+    },
+  };
 ```
 
-Сам класс `TaskService` изменять не потребуется.
+В этом случае стандартный тип метаданных не используется.
+
+---
+
+## Задание 7. Плохие дженерики
+
+### Пример 1. Небезопасный `parse<T>`
+
+Исходная сигнатура:
+
+```ts
+function parse<T>(text: string): T;
+```
+
+Параметр `T` используется только в возвращаемом типе и никак не связан со входными данными.
+
+Вызывающий код может потребовать любой результат:
+
+```ts
+const product =
+  parse<Product>("null");
+```
+
+TypeScript поверит, что результат является `Product`, хотя реальное значение может быть любым.
+
+Более безопасные варианты:
+
+* возвращать `unknown`;
+* проверять результат после `JSON.parse`;
+* принимать функцию-валидатор;
+* использовать библиотеку runtime-валидации.
+
+Например, функция может возвращать:
+
+```ts
+unknown
+```
+
+А конкретный тип должен быть подтверждён отдельной проверкой.
+
+---
+
+### Пример 2. Бесполезный параметр типа
+
+Исходная сигнатура:
+
+```ts
+function length<
+  T extends { length: number },
+>(
+  value: T,
+): number;
+```
+
+Функция использует только свойство `length` и возвращает обычное число.
+
+Полный тип `T` нигде больше не применяется.
+
+Следовательно, никакой связи между типами не сохраняется.
+
+Достаточно обычного параметра:
+
+```ts
+value: { length: number }
+```
+
+Дженерик понадобился бы, если бы функция возвращала исходное значение или связывала его с другой частью контракта.
+
+---
+
+### Пример 3. Слишком много параметров типов
+
+Исходная сигнатура:
+
+```ts
+function process<
+  T,
+  U,
+  V,
+  W,
+  X,
+  Y,
+  Z
+>(...);
+```
+
+Большое количество параметров типов не является автоматической ошибкой.
+
+Однако такая сигнатура часто указывает на проблемы проектирования:
+
+* функция выполняет слишком много обязанностей;
+* параметры имеют неинформативные названия;
+* связанные параметры можно объединить;
+* API трудно читать и использовать;
+* разработчику сложно понять назначение каждого типа.
+
+Вместо однобуквенных названий лучше использовать понятные:
+
+```text
+TInput
+TOutput
+TError
+TContext
+```
+
+Часть параметров можно объединить в именованный интерфейс конфигурации.
+
+Саму функцию можно разделить на несколько меньших функций.
+
+Каждый параметр типа должен выражать отдельную полезную связь.
 
 ---
 
 # Полный код решения
 
 ```ts
-type TaskStatus = "todo" | "inProgress" | "done";
+export {};
 
-type TaskSnapshot = {
-  id: number;
+interface Entity<TId> {
+  readonly id: TId;
+}
+
+interface Product extends Entity<number> {
   title: string;
-  status: TaskStatus;
-  createdAt: string;
-};
-
-interface Entity {
-  readonly id: number;
+  price: number;
+  categoryId: string;
+  available: boolean;
 }
 
-interface Repository<T extends Entity> {
-  save(entity: T): void;
-  findById(id: number): T | undefined;
-  findAll(): T[];
-  remove(id: number): boolean;
+interface Category extends Entity<string> {
+  title: string;
+  description: string;
 }
 
-class TaskEntity {
-  private _status: TaskStatus = "todo";
+class Repository<
+  TEntity extends Entity<TId>,
+  TId = string,
+> {
+  private readonly items =
+    new Map<TId, TEntity>();
 
-  constructor(
-    public readonly id: number,
-    private _title: string,
-    public readonly createdAt: Date = new Date(),
-  ) {
-    if (!Number.isInteger(id) || id <= 0) {
-      throw new Error(
-        "Идентификатор задачи должен быть положительным целым числом",
-      );
-    }
-
-    this._title = TaskEntity.normalizeTitle(_title);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error(
-        "Некорректная дата создания задачи",
-      );
-    }
-  }
-
-  get title(): string {
-    return this._title;
-  }
-
-  get status(): TaskStatus {
-    return this._status;
-  }
-
-  rename(title: string): void {
-    if (this._status === "done") {
-      throw new Error(
-        "Нельзя переименовать завершённую задачу",
-      );
-    }
-
-    this._title = TaskEntity.normalizeTitle(title);
-  }
-
-  start(): void {
-    if (this._status !== "todo") {
-      throw new Error(
-        "Начать можно только задачу со статусом todo",
-      );
-    }
-
-    this._status = "inProgress";
-  }
-
-  complete(): void {
-    if (this._status !== "inProgress") {
-      throw new Error(
-        "Завершить можно только задачу со статусом inProgress",
-      );
-    }
-
-    this._status = "done";
-  }
-
-  toSnapshot(): TaskSnapshot {
-    return {
-      id: this.id,
-      title: this._title,
-      status: this._status,
-      createdAt: this.createdAt.toISOString(),
-    };
-  }
-
-  static fromSnapshot(
-    snapshot: TaskSnapshot,
-  ): TaskEntity {
-    if (
-      !Number.isInteger(snapshot.id) ||
-      snapshot.id <= 0
-    ) {
-      throw new Error(
-        "Идентификатор задачи должен быть положительным целым числом",
-      );
-    }
-
-    if (!TaskEntity.isTaskStatus(snapshot.status)) {
-      throw new Error(
-        `Некорректный статус задачи: ${snapshot.status}`,
-      );
-    }
-
-    const createdAt = new Date(snapshot.createdAt);
-
-    if (Number.isNaN(createdAt.getTime())) {
-      throw new Error(
-        "Некорректная дата создания задачи",
-      );
-    }
-
-    const task = new TaskEntity(
-      snapshot.id,
-      snapshot.title,
-      createdAt,
-    );
-
-    task._status = snapshot.status;
-
-    return task;
-  }
-
-  private static normalizeTitle(
-    title: string,
-  ): string {
-    const normalizedTitle = title.trim();
-
-    if (normalizedTitle === "") {
-      throw new Error("Название задачи обязательно");
-    }
-
-    return normalizedTitle;
-  }
-
-  private static isTaskStatus(
-    value: string,
-  ): value is TaskStatus {
-    return (
-      value === "todo" ||
-      value === "inProgress" ||
-      value === "done"
-    );
-  }
-}
-
-class InMemoryRepository<T extends Entity>
-  implements Repository<T>
-{
-  private readonly items = new Map<number, T>();
-
-  save(entity: T): void {
+  save(entity: TEntity): void {
     this.items.set(entity.id, entity);
   }
 
-  findById(id: number): T | undefined {
+  findById(id: TId): TEntity | undefined {
     return this.items.get(id);
   }
 
-  findAll(): T[] {
+  findAll(): TEntity[] {
     return [...this.items.values()];
   }
 
-  remove(id: number): boolean {
+  remove(id: TId): boolean {
     return this.items.delete(id);
   }
+
+  has(id: TId): boolean {
+    return this.items.has(id);
+  }
 }
 
-function isRecord(
-  value: unknown,
-): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+function getProperty<
+  T,
+  K extends keyof T,
+>(
+  object: T,
+  key: K,
+): T[K] {
+  return object[key];
 }
 
-function isTaskStatus(
-  value: unknown,
-): value is TaskStatus {
-  return (
-    value === "todo" ||
-    value === "inProgress" ||
-    value === "done"
+function setProperty<
+  T,
+  K extends keyof T,
+>(
+  object: T,
+  key: K,
+  value: T[K],
+): T {
+  return {
+    ...object,
+    [key]: value,
+  };
+}
+
+type ApiSuccess<TData> = {
+  status: "success";
+  data: TData;
+};
+
+type ApiFailure = {
+  status: "error";
+  message: string;
+  code: number;
+};
+
+type ApiResponse<TData> =
+  | ApiSuccess<TData>
+  | ApiFailure;
+
+function printApiResponse<TData>(
+  response: ApiResponse<TData>,
+): void {
+  if (response.status === "success") {
+    console.log(response.data);
+    return;
+  }
+
+  console.log(
+    `Ошибка ${response.code}: ${response.message}`,
   );
 }
 
-function isTaskSnapshot(
-  value: unknown,
-): value is TaskSnapshot {
-  return (
-    isRecord(value) &&
-    typeof value.id === "number" &&
-    Number.isInteger(value.id) &&
-    value.id > 0 &&
-    typeof value.title === "string" &&
-    isTaskStatus(value.status) &&
-    typeof value.createdAt === "string"
+class Cache<TKey, TValue> {
+  private readonly items =
+    new Map<TKey, TValue>();
+
+  set(
+    key: TKey,
+    value: TValue,
+  ): void {
+    this.items.set(key, value);
+  }
+
+  get(
+    key: TKey,
+  ): TValue | undefined {
+    return this.items.get(key);
+  }
+
+  delete(key: TKey): boolean {
+    return this.items.delete(key);
+  }
+
+  has(key: TKey): boolean {
+    return this.items.has(key);
+  }
+
+  getOrSet(
+    key: TKey,
+    factory: () => TValue,
+  ): TValue {
+    const existingValue =
+      this.items.get(key);
+
+    if (existingValue !== undefined) {
+      return existingValue;
+    }
+
+    const newValue = factory();
+
+    this.items.set(key, newValue);
+
+    return newValue;
+  }
+}
+
+type DefaultPaginationMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+type PaginatedResponse<
+  TItem,
+  TMeta = DefaultPaginationMeta,
+> = {
+  items: TItem[];
+  meta: TMeta;
+};
+
+type CursorPaginationMeta = {
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+const productRepository =
+  new Repository<Product, number>();
+
+const categoryRepository =
+  new Repository<Category>();
+
+const keyboardCategory: Category = {
+  id: "keyboards",
+  title: "Клавиатуры",
+  description:
+    "Механические и мембранные клавиатуры",
+};
+
+const mouseCategory: Category = {
+  id: "mice",
+  title: "Компьютерные мыши",
+  description:
+    "Проводные и беспроводные мыши",
+};
+
+categoryRepository.save(
+  keyboardCategory,
+);
+
+categoryRepository.save(
+  mouseCategory,
+);
+
+const keyboard: Product = {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true,
+};
+
+const mouse: Product = {
+  id: 2,
+  title: "Мышь",
+  price: 3500,
+  categoryId: "mice",
+  available: true,
+};
+
+productRepository.save(keyboard);
+productRepository.save(mouse);
+
+console.log(
+  "Все товары:",
+  productRepository.findAll(),
+);
+
+console.log(
+  "Товар с id 1:",
+  productRepository.findById(1),
+);
+
+console.log(
+  "Существует товар с id 2:",
+  productRepository.has(2),
+);
+
+console.log(
+  "Все категории:",
+  categoryRepository.findAll(),
+);
+
+const keyboardTitle =
+  getProperty(
+    keyboard,
+    "title",
   );
-}
 
-class TaskService {
-  private static nextId = 1;
-
-  constructor(
-    private readonly repository:
-      Repository<TaskEntity>,
-  ) {}
-
-  create(title: string): TaskEntity {
-    const task = new TaskEntity(
-      TaskService.nextId,
-      title,
-    );
-
-    TaskService.nextId += 1;
-
-    this.repository.save(task);
-
-    return task;
-  }
-
-  findById(id: number): TaskEntity {
-    const task = this.repository.findById(id);
-
-    if (!task) {
-      throw new Error(
-        `Задача с id ${id} не найдена`,
-      );
-    }
-
-    return task;
-  }
-
-  findAll(): TaskEntity[] {
-    return this.repository.findAll();
-  }
-
-  rename(id: number, title: string): void {
-    const task = this.findById(id);
-
-    task.rename(title);
-    this.repository.save(task);
-  }
-
-  start(id: number): void {
-    const task = this.findById(id);
-
-    task.start();
-    this.repository.save(task);
-  }
-
-  complete(id: number): void {
-    const task = this.findById(id);
-
-    task.complete();
-    this.repository.save(task);
-  }
-
-  remove(id: number): boolean {
-    return this.repository.remove(id);
-  }
-
-  exportToJson(): string {
-    const snapshots = this.repository
-      .findAll()
-      .map((task) => task.toSnapshot());
-
-    return JSON.stringify(snapshots, null, 2);
-  }
-
-  importFromJson(json: string): void {
-    let parsedValue: unknown;
-
-    try {
-      parsedValue = JSON.parse(json);
-    } catch {
-      throw new Error(
-        "Передана некорректная JSON-строка",
-      );
-    }
-
-    if (!Array.isArray(parsedValue)) {
-      throw new Error(
-        "JSON должен содержать массив задач",
-      );
-    }
-
-    const restoredTasks: TaskEntity[] = [];
-
-    for (const value of parsedValue) {
-      if (!isTaskSnapshot(value)) {
-        throw new Error(
-          `Некорректный снимок задачи: ${JSON.stringify(value)}`,
-        );
-      }
-
-      restoredTasks.push(
-        TaskEntity.fromSnapshot(value),
-      );
-    }
-
-    for (const task of restoredTasks) {
-      this.repository.save(task);
-    }
-
-    const maximumId = restoredTasks.reduce(
-      (maximum, task) =>
-        Math.max(maximum, task.id),
-      0,
-    );
-
-    TaskService.nextId = Math.max(
-      TaskService.nextId,
-      maximumId + 1,
-    );
-  }
-}
-
-function printError(error: unknown): void {
-  if (error instanceof Error) {
-    console.log(`Ошибка: ${error.message}`);
-  } else {
-    console.log("Произошла неизвестная ошибка");
-  }
-}
-
-const repository =
-  new InMemoryRepository<TaskEntity>();
-
-const taskService = new TaskService(repository);
-
-console.log("Сценарий 1. Создание корректной задачи");
-
-const task1 = taskService.create(
-  "Изучить классы TypeScript",
-);
-
-console.log(task1.toSnapshot());
-
-console.log(
-  "\nСценарий 2. Попытка создать пустую задачу",
-);
-
-try {
-  taskService.create("   ");
-} catch (error) {
-  printError(error);
-}
-
-console.log(
-  "\nСценарий 3. Корректное изменение статусов",
-);
-
-taskService.rename(
-  task1.id,
-  "Изучить классы и композицию",
-);
-
-taskService.start(task1.id);
-
-console.log(taskService.findById(task1.id).status);
-
-taskService.complete(task1.id);
-
-console.log(taskService.findById(task1.id).status);
-
-console.log(
-  "\nСценарий 4. Запрещённый переход",
-);
-
-try {
-  taskService.start(task1.id);
-} catch (error) {
-  printError(error);
-}
-
-console.log(
-  "\nСценарий 5. Запрет переименования завершённой задачи",
-);
-
-try {
-  taskService.rename(
-    task1.id,
-    "Новое название",
+const keyboardPrice =
+  getProperty(
+    keyboard,
+    "price",
   );
-} catch (error) {
-  printError(error);
-}
 
 console.log(
-  "\nСценарий 6. Экспорт задач в JSON",
-);
-
-const task2 = taskService.create(
-  "Реализовать репозиторий",
-);
-
-taskService.start(task2.id);
-
-const json = taskService.exportToJson();
-
-console.log(json);
-
-console.log(
-  "\nСценарий 7. Восстановление задач",
-);
-
-const restoredRepository =
-  new InMemoryRepository<TaskEntity>();
-
-const restoredService =
-  new TaskService(restoredRepository);
-
-restoredService.importFromJson(json);
-
-for (const task of restoredService.findAll()) {
-  console.log({
-    snapshot: task.toSnapshot(),
-    isTaskEntity: task instanceof TaskEntity,
-    hasStartMethod:
-      typeof task.start === "function",
-  });
-}
-
-console.log(
-  "\nСценарий 8. Создание задачи после импорта",
-);
-
-const task3 = restoredService.create(
-  "Проверить генерацию идентификатора",
-);
-
-console.log(task3.toSnapshot());
-
-console.log(
-  "\nСценарий 9. Поиск и удаление",
+  "Название:",
+  keyboardTitle,
 );
 
 console.log(
-  restoredService.findById(task2.id).toSnapshot(),
+  "Цена:",
+  keyboardPrice,
 );
 
-const removed =
-  restoredService.remove(task2.id);
+const discountedKeyboard =
+  setProperty(
+    keyboard,
+    "price",
+    6990,
+  );
 
-console.log(`Задача удалена: ${removed}`);
+const unavailableKeyboard =
+  setProperty(
+    discountedKeyboard,
+    "available",
+    false,
+  );
 
 console.log(
-  "\nСценарий 10. Несуществующая задача",
+  "Исходный товар:",
+  keyboard,
 );
 
-try {
-  restoredService.findById(999);
-} catch (error) {
-  printError(error);
-}
+console.log(
+  "Обновлённый товар:",
+  unavailableKeyboard,
+);
+
+// Ожидаемые ошибки TypeScript:
+
+// @ts-expect-error:
+// свойства discount нет у Product
+getProperty(
+  keyboard,
+  "discount",
+);
+
+// @ts-expect-error:
+// price ожидает number
+setProperty(
+  keyboard,
+  "price",
+  "6990",
+);
+
+// @ts-expect-error:
+// available ожидает boolean
+setProperty(
+  keyboard,
+  "available",
+  "да",
+);
+
+const productsResponse:
+  ApiResponse<Product[]> = {
+    status: "success",
+    data: productRepository.findAll(),
+  };
+
+const categoriesResponse:
+  ApiResponse<Category[]> = {
+    status: "success",
+    data: categoryRepository.findAll(),
+  };
+
+const errorResponse:
+  ApiResponse<Product[]> = {
+    status: "error",
+    message:
+      "Не удалось загрузить каталог",
+    code: 500,
+  };
+
+printApiResponse(productsResponse);
+printApiResponse(categoriesResponse);
+printApiResponse(errorResponse);
+
+const productCache =
+  new Cache<number, Product>();
+
+productCache.set(
+  keyboard.id,
+  keyboard,
+);
+
+console.log(
+  "Товар из кэша:",
+  productCache.get(1),
+);
+
+const cachedMouse =
+  productCache.getOrSet(
+    mouse.id,
+    () => mouse,
+  );
+
+console.log(
+  "Созданное значение:",
+  cachedMouse,
+);
+
+const secondCachedMouse =
+  productCache.getOrSet(
+    mouse.id,
+    () => ({
+      id: mouse.id,
+      title: "Другое значение",
+      price: 1,
+      categoryId: "other",
+      available: false,
+    }),
+  );
+
+console.log(
+  "Существующее значение:",
+  secondCachedMouse,
+);
+
+console.log(
+  "Кэш содержит ключ 2:",
+  productCache.has(2),
+);
+
+console.log(
+  "Удаление ключа 2:",
+  productCache.delete(2),
+);
+
+console.log(
+  "Кэш содержит ключ 2:",
+  productCache.has(2),
+);
+
+const productPage:
+  PaginatedResponse<Product> = {
+    items:
+      productRepository.findAll(),
+    meta: {
+      page: 1,
+      pageSize: 10,
+      total: 2,
+      totalPages: 1,
+    },
+  };
+
+console.log(
+  "Стандартная пагинация:",
+  productPage,
+);
+
+const cursorProductPage:
+  PaginatedResponse<
+    Product,
+    CursorPaginationMeta
+  > = {
+    items: [
+      {
+        id: 3,
+        title: "Монитор",
+        price: 32000,
+        categoryId: "monitors",
+        available: true,
+      },
+    ],
+    meta: {
+      nextCursor: "product-3",
+      hasMore: true,
+    },
+  };
+
+console.log(
+  "Курсорная пагинация:",
+  cursorProductPage,
+);
 ```
 
 ## Пример результата
 
 ```text
-Сценарий 1. Создание корректной задачи
-{
-  id: 1,
-  title: "Изучить классы TypeScript",
-  status: "todo",
-  createdAt: "..."
-}
-
-Сценарий 2. Попытка создать пустую задачу
-Ошибка: Название задачи обязательно
-
-Сценарий 3. Корректное изменение статусов
-inProgress
-done
-
-Сценарий 4. Запрещённый переход
-Ошибка: Начать можно только задачу со статусом todo
-
-Сценарий 5. Запрет переименования завершённой задачи
-Ошибка: Нельзя переименовать завершённую задачу
-
-Сценарий 6. Экспорт задач в JSON
-[
+Все товары: [
   {
-    "id": 1,
-    "title": "Изучить классы и композицию",
-    "status": "done",
-    "createdAt": "..."
+    id: 1,
+    title: "Клавиатура",
+    price: 7500,
+    categoryId: "keyboards",
+    available: true
   },
   {
-    "id": 2,
-    "title": "Реализовать репозиторий",
-    "status": "inProgress",
-    "createdAt": "..."
+    id: 2,
+    title: "Мышь",
+    price: 3500,
+    categoryId: "mice",
+    available: true
   }
 ]
 
-Сценарий 7. Восстановление задач
-{
-  snapshot: {
-    id: 1,
-    title: "Изучить классы и композицию",
-    status: "done",
-    createdAt: "..."
-  },
-  isTaskEntity: true,
-  hasStartMethod: true
+Товар с id 1: {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true
 }
 
-Сценарий 8. Создание задачи после импорта
-{
-  id: 3,
-  title: "Проверить генерацию идентификатора",
-  status: "todo",
-  createdAt: "..."
+Существует товар с id 2: true
+
+Название: Клавиатура
+Цена: 7500
+
+Исходный товар: {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true
 }
 
-Сценарий 9. Поиск и удаление
-{
-  id: 2,
-  title: "Реализовать репозиторий",
-  status: "inProgress",
-  createdAt: "..."
+Обновлённый товар: {
+  id: 1,
+  title: "Клавиатура",
+  price: 6990,
+  categoryId: "keyboards",
+  available: false
 }
-Задача удалена: true
 
-Сценарий 10. Несуществующая задача
-Ошибка: Задача с id 999 не найдена
+Товар из кэша: {
+  id: 1,
+  title: "Клавиатура",
+  price: 7500,
+  categoryId: "keyboards",
+  available: true
+}
+
+Кэш содержит ключ 2: true
+Удаление ключа 2: true
+Кэш содержит ключ 2: false
+
+Стандартная пагинация: {
+  items: [...],
+  meta: {
+    page: 1,
+    pageSize: 10,
+    total: 2,
+    totalPages: 1
+  }
+}
+
+Курсорная пагинация: {
+  items: [...],
+  meta: {
+    nextCursor: "product-3",
+    hasMore: true
+  }
+}
 ```
