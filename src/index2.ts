@@ -1,22 +1,29 @@
-type HasId = {
-  id: string | number;
+console.log(typeof 42);
+
+const defaultConfig = {
+  locale: "ru",
+  pageSize: 20,
+  theme: "dark",
+  features: {
+    recommendations: true,
+  },
 };
 
-function logIdBroken<T extends HasId>(value: T): T {
-  console.log(value.id);
-  return value;
-}
+// type Config = {
+//   locale: string;
+//   pageSize: number;
+//   features: {
+//     recommendations: boolean;
+//   };
+// };
 
-// logIdBroken(100);
+type Config = typeof defaultConfig;
 
-// logIdBroken("Hello");
+const roles = ["admin", "editor", "viewer"] as const;
 
-// logIdBroken(true);
+typeof roles;
 
-const product = logIdBroken({
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-});
+type Role = (typeof roles)[number];
 
-console.log(product.title);
+const role: Role = "admin";
+//const role2: Role = "manager";

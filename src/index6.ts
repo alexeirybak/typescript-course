@@ -1,71 +1,27 @@
-type PaginatedResponse<
-  TItem,
-  TMeta = {
-    page: number;
-    total: number;
-  },
-> = {
-  items: TItem[];
-  meta: TMeta;
-};
+type FunctionResult<T> = T extends (...args: never[]) => infer TResult
+  ? TResult
+  : never;
 
-type User = {
-  id: number;
-  name: string;
-};
+function createUser() {
+  return {
+    id: 1,
+    name: "Анна",
+  };
+}
 
-type UserPage = PaginatedResponse<User>;
+typeof createUser;
 
-const userPage: UserPage = {
-  items: [
-    {
-      id: 1,
-      name: "Анна",
-    },
-    {
-      id: 2,
-      name: "Борис",
-    },
-  ],
-  meta: {
-    page: 1,
-    total: 2,
-  },
-};
+type CreatedUser = FunctionResult<typeof createUser>;
 
-type CursorMeta = {
-  nextCursor: string | null;
-};
-
-type CursorUserPage = PaginatedResponse<User, CursorMeta>;
-
-// type CursorUserPage = {
-//   items: User[];
-//   meta: {
-//     nextCursor: string | null;
-//   };
+// type CreatedUser = {
+//   id: number;
+//   name: string;
 // };
 
-const cursorUserPage: CursorUserPage = {
-  items: [
-    {
-      id: 1,
-      name: "Анна",
-    },
-  ],
-  meta: {
-    nextCursor: "users-page-2",
-  },
-};
+type PromiseValue<T> = T extends Promise<infer TValue> ? TValue : T;
 
-const lastUserPage: CursorUserPage = {
-  items: [
-    {
-      id: 3,
-      name: "Мария",
-    },
-  ],
-  meta: {
-    nextCursor: null,
-  },
-};
+type AsyncNumber = PromiseValue<Promise<number>>;
+
+type RegularString = PromiseValue<string>;
+
+type Result = Awaited<Promise<Promise<number>>>;

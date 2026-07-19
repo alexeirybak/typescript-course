@@ -1,73 +1,29 @@
-// type ProcessContext = {
-//   userId: number;
-//   locale: string;
-//   requestId: string;
-// };
+type JsonPrimitive = string | number | boolean | null;
 
-// function process<TData, TUserId, TLocale, TRequestId>(
-//   data: TData,
-//   userId: TUserId,
-//   locale: TLocale,
-//   requestId: TRequestId,
-// ): {
-//   data: TData;
-//   context: {
-//     userId: TUserId;
-//     locale: TLocale;
-//     requestId: TRequestId;
-//   };
-// } {
-//   return {
-//     data,
-//     context: {
-//       userId,
-//       locale,
-//       requestId,
-//     },
-//   };
-// }
+type JsonValue =
+  | JsonPrimitive
+  | JsonValue[]
+  | {
+      [key: string]: JsonValue;
+    };
 
-// const result = process(
-//   {
-//     id: 1,
-//     title: "Клавиатура",
-//   },
-//   15,
-//   "ru",
-//   "request-123",
-// );
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly unknown[]
+    ? {
+        readonly [K in keyof T]: DeepReadonly<T[K]>;
+      }
+    : T extends object
+      ? {
+          readonly [K in keyof T]: DeepReadonly<T[K]>;
+        }
+      : T;
 
-// console.log(result);
-
-type ProcessContext = {
-  userId: number;
-  locale: string;
-  requestId: string;
+type Settings = {
+  user: {
+    name: string;
+    roles: string[];
+  };
 };
 
-function process<TData>(
-  data: TData,
-  context: ProcessContext,
-): {
-  data: TData;
-  context: ProcessContext;
-} {
-  return {
-    data,
-    context,
-  };
-}
-
-const result = process(
-  {
-    id: 1,
-    title: "Клавиатура",
-  },
-  {
-    userId: 15,
-    locale: "ru",
-    requestId: "request-123",
-  },
-);
-
-console.log(result);
+type FrozenSettings = DeepReadonly<Settings>;

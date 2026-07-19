@@ -1,38 +1,37 @@
-function firstUnknown(items: unknown[]): unknown {
-  return items[0];
+type User = {
+  id: number;
+  name: string;
+  active: boolean;
+};
+
+type UserKey = keyof User;
+
+//type UserKey = "id" | "name" | "active"
+
+const key1: UserKey = "id";
+const key2: UserKey = "name";
+const key3: UserKey = "active";
+
+function pickProperty<K extends UserKey>(user: User, key: K): User[K] {
+  return user[key];
 }
 
-const value = firstUnknown(["Анна", "Борис"]);
+const user: User = {
+  id: 1,
+  name: "Алексей",
+  active: true,
+};
 
-// function firstAny(items: any[]): any {
-//   return items[0];
-// }
+// const value = pickProperty(user, "age");
 
-// const unsafe = firstAny(["Анна"]);
-// unsafe.nonExistingMethod();
+type Scores = {
+  [id: number]: number;
+};
 
-function first<T>(items: readonly T[]): T | undefined {
-  return items[0];
-}
+type ScoreKey = keyof Scores;
 
-const firstName = first(["Анна", "Борис"]);
+type Dictionary = {
+  [key: string]: string;
+};
 
-const maybeName = first<string>([]);
-
-function pair<TFirst, TSecond>(
-  first: TFirst,
-  second: TSecond,
-): [TFirst, TSecond] {
-  return [first, second];
-}
-
-const entry = pair("age", 30);
-
-function mapArray<TInput, TOutput>(
-  items: readonly TInput[],
-  transform: (item: TInput, index: number) => TOutput,
-): TOutput[] {
-  return items.map(transform);
-}
-
-const lengths = mapArray(["TypeScript", "React"], (word) => word.length);
+type DictionaryKey = keyof Dictionary;

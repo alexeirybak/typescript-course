@@ -2,329 +2,414 @@
 
 ## Контрольные вопросы
 
-### 1. Чем `<T>` отличается от `any`?
+### 1. Чем `typeof` в выражении отличается от `typeof` в типовой позиции?
 
-`any` отключает проверку типов.
+В обычном JavaScript `typeof` работает во время выполнения программы.
+
+Он получает значение и возвращает строку с названием его типа:
 
 ```ts
-function firstAny(items: any[]): any {
-  return items[0];
-}
+const value = 42;
 
-const value = firstAny(["Анна", "Борис"]);
-
-value.nonExistingMethod();
+console.log(typeof value);
 ```
 
-TypeScript разрешит вызвать несуществующий метод, потому что значение имеет тип `any`.
+Результат:
 
-Ошибка обнаружится только во время выполнения программы.
-
-Дженерик сохраняет информацию о конкретном типе:
-
-```ts
-function first<T>(
-  items: readonly T[],
-): T | undefined {
-  return items[0];
-}
-
-const value = first(["Анна", "Борис"]);
+```text
+number
 ```
 
-Тип переменной `value`:
+В этом случае `typeof` является обычным JavaScript-оператором.
 
-```ts
-string | undefined
+Он возвращает одну из строк:
+
+```text
+"string"
+"number"
+"boolean"
+"undefined"
+"object"
+"function"
+"symbol"
+"bigint"
 ```
 
-TypeScript понимает, что в функцию был передан массив строк.
+В TypeScript оператор `typeof` можно также использовать в типовой позиции.
 
-Поэтому вызвать несуществующий метод нельзя:
+Например:
 
 ```ts
-if (value) {
-  console.log(value.toUpperCase());
+const defaultConfig = {
+  locale: "ru",
+  pageSize: 20,
+  darkMode: true,
+};
 
-  // Ошибка TypeScript:
-  // value.nonExistingMethod();
-}
+type Config =
+  typeof defaultConfig;
+```
+
+В этом случае `typeof` не выполняется во время работы программы.
+
+TypeScript получает тип переменной `defaultConfig`.
+
+Тип `Config` будет эквивалентен следующему:
+
+```ts
+type Config = {
+  locale: string;
+  pageSize: number;
+  darkMode: boolean;
+};
 ```
 
 Основное различие:
 
-* `any` удаляет информацию о типе и отключает проверки;
-* `<T>` временно обозначает неизвестный тип, который будет определён при использовании функции, класса или интерфейса;
-* дженерик сохраняет связь между входными и выходными типами.
+* `typeof value` в выражении возвращает строку во время выполнения;
+* `typeof value` в типовой позиции получает тип переменной во время компиляции;
+* обычный `typeof` является частью JavaScript;
+* типовой `typeof` используется только TypeScript и исчезает после компиляции.
 
 ---
 
-### 2. Что даёт ограничение `T extends HasId`?
+### 2. Как получить тип элемента массива?
 
-Ограничение указывает, каким минимальным требованиям должен соответствовать параметр типа.
-
-Создадим тип:
+Пусть существует массив:
 
 ```ts
-type HasId = {
-  id: string | number;
-};
+const roles = [
+  "admin",
+  "editor",
+  "viewer",
+] as const;
 ```
 
-Теперь ограничим параметр типа:
+Сначала получим тип самого массива:
 
 ```ts
-function logId<T extends HasId>(
-  value: T,
-): T {
-  console.log(value.id);
+type Roles =
+  typeof roles;
+```
 
-  return value;
+Он будет выглядеть примерно так:
+
+```ts
+readonly [
+  "admin",
+  "editor",
+  "viewer",
+]
+```
+
+Чтобы получить тип одного элемента массива, используется индексированный доступ с ключом `number`:
+
+```ts
+type Role =
+  (typeof roles)[number];
+```
+
+Результат:
+
+```ts
+type Role =
+  | "admin"
+  | "editor"
+  | "viewer";
+```
+
+Такая запись читается следующим образом:
+
+1. `typeof roles` получает тип массива;
+2. `[number]` получает тип любого его элемента.
+
+Для обычного типа массива используется тот же принцип:
+
+```ts
+type Users = Array<{
+  id: number;
+  name: string;
+}>;
+
+type User =
+  Users[number];
+```
+
+Тип `User`:
+
+```ts
+{
+  id: number;
+  name: string;
 }
 ```
 
-TypeScript знает, что у значения обязательно существует свойство `id`.
-
-Такой объект передать можно:
+Можно также создать универсальный условный тип:
 
 ```ts
-const product = logId({
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-});
+type ArrayElement<T> =
+  T extends readonly (infer TItem)[]
+    ? TItem
+    : never;
 ```
 
-При этом полный тип объекта сохраняется:
+Применение:
 
 ```ts
-console.log(product.title);
-console.log(product.price);
+type StringItem =
+  ArrayElement<string[]>;
+
+type NumberItem =
+  ArrayElement<readonly number[]>;
 ```
 
-Такое значение передать нельзя:
+Результаты:
 
 ```ts
-// Ошибка TypeScript:
-// logId({
-//   title: "Клавиатура",
-// });
+// StringItem: string
+// NumberItem: number
 ```
-
-В объекте отсутствует обязательное поле `id`.
-
-Ограничение `T extends HasId`:
-
-* запрещает передавать типы без свойства `id`;
-* позволяет безопасно обращаться к `value.id`;
-* сохраняет остальные свойства конкретного типа;
-* не заменяет тип `T` на `HasId`, а только устанавливает минимальный контракт.
 
 ---
 
-### 3. Как связаны `K extends keyof T` и `T[K]`?
+### 3. Когда conditional type распределяется по union?
 
-`keyof T` создаёт объединение ключей типа `T`.
+Условный тип распределяется по объединению, когда слева от `extends` находится параметр типа без дополнительной оболочки.
 
 Например:
+
+```ts
+type ToArray<T> =
+  T extends unknown
+    ? T[]
+    : never;
+```
+
+Передадим объединение:
+
+```ts
+type Result =
+  ToArray<string | number>;
+```
+
+TypeScript применит условный тип отдельно к каждому элементу объединения:
+
+```ts
+ToArray<string>
+```
+
+даёт:
+
+```ts
+string[]
+```
+
+А:
+
+```ts
+ToArray<number>
+```
+
+даёт:
+
+```ts
+number[]
+```
+
+Итоговый результат:
+
+```ts
+type Result =
+  string[] | number[];
+```
+
+Такое поведение называется распределением условного типа по объединению.
+
+Чтобы отключить распределение, параметр типа можно обернуть в кортеж:
+
+```ts
+type ToArrayTogether<T> =
+  [T] extends [unknown]
+    ? T[]
+    : never;
+```
+
+Теперь:
+
+```ts
+type Together =
+  ToArrayTogether<string | number>;
+```
+
+Результат:
+
+```ts
+type Together =
+  (string | number)[];
+```
+
+Правило:
+
+* `T extends SomeType` — условие распределяется по union;
+* `[T] extends [SomeType]` — всё объединение проверяется как единый тип.
+
+---
+
+### 4. Что делает `infer`?
+
+Ключевое слово `infer` позволяет извлечь часть сложного типа внутри условного типа.
+
+Например, получим возвращаемый тип функции:
+
+```ts
+type FunctionResult<T> =
+  T extends (
+    ...args: never[]
+  ) => infer TResult
+    ? TResult
+    : never;
+```
+
+Создадим функцию:
+
+```ts
+function createUser() {
+  return {
+    id: 1,
+    name: "Анна",
+  };
+}
+```
+
+Получим тип её результата:
+
+```ts
+type CreatedUser =
+  FunctionResult<
+    typeof createUser
+  >;
+```
+
+TypeScript сопоставляет тип функции с шаблоном:
+
+```ts
+(...args: never[]) => infer TResult
+```
+
+После этого сохраняет возвращаемый тип во временный параметр `TResult`.
+
+Результат:
+
+```ts
+type CreatedUser = {
+  id: number;
+  name: string;
+};
+```
+
+Другой пример — извлечение значения из `Promise`:
+
+```ts
+type PromiseValue<T> =
+  T extends Promise<infer TValue>
+    ? TValue
+    : T;
+```
+
+Использование:
+
+```ts
+type Result =
+  PromiseValue<Promise<number>>;
+```
+
+Результат:
+
+```ts
+number
+```
+
+`infer`:
+
+* используется внутри условного типа;
+* сопоставляет тип с определённым шаблоном;
+* извлекает нужную часть типа;
+* сохраняет найденный тип во временный параметр.
+
+---
+
+### 5. Как mapped type фильтрует ключи?
+
+Mapped type может менять имя ключа с помощью конструкции `as`.
+
+Если вместо имени ключа получить `never`, свойство будет исключено из итогового типа.
+
+Создадим тип:
 
 ```ts
 type User = {
   id: number;
   name: string;
   active: boolean;
+  email: string;
 };
 ```
 
-Выражение:
+Оставим только строковые свойства:
 
 ```ts
-keyof User
-```
-
-создаёт тип:
-
-```ts
-"id" | "name" | "active"
-```
-
-Ограничение:
-
-```ts
-K extends keyof T
-```
-
-означает, что `K` может быть только существующим ключом объекта.
-
-Конструкция:
-
-```ts
-T[K]
-```
-
-возвращает тип значения, которое находится по выбранному ключу.
-
-```ts
-function getProperty<
-  T,
-  K extends keyof T,
->(
-  object: T,
-  key: K,
-): T[K] {
-  return object[key];
-}
-```
-
-Использование:
-
-```ts
-const user: User = {
-  id: 1,
-  name: "Анна",
-  active: true,
+type StringProperties<T> = {
+  [K in keyof T as
+    T[K] extends string
+      ? K
+      : never
+  ]: T[K];
 };
-
-const name = getProperty(user, "name");
-const active = getProperty(user, "active");
 ```
 
-Типы результатов:
+Применение:
 
 ```ts
-// name: string
-// active: boolean
+type UserStrings =
+  StringProperties<User>;
 ```
 
-Связь выглядит так:
+Mapped type проходит по каждому ключу.
 
-* `T` — тип объекта;
-* `keyof T` — все допустимые ключи объекта;
-* `K` — конкретный выбранный ключ;
-* `T[K]` — тип значения по этому ключу.
-
----
-
-### 4. Когда параметр типа не нужен?
-
-Параметр типа не нужен, если он не сохраняет связь между несколькими частями контракта.
-
-Например:
+Для свойства `id`:
 
 ```ts
-function length<
-  T extends { length: number },
->(
-  value: T,
-): number {
-  return value.length;
-}
+number extends string
 ```
 
-Параметр `T` используется только в одном месте.
+Условие не выполняется, поэтому ключ превращается в `never`.
 
-Функция не возвращает `T` и не связывает его с другим аргументом.
-
-Поэтому дженерик можно убрать:
+Для свойства `name`:
 
 ```ts
-function length(
-  value: { length: number },
-): number {
-  return value.length;
-}
+string extends string
 ```
 
-Обе функции выполняют одну и ту же задачу.
+Условие выполняется, поэтому ключ сохраняется.
 
-Параметр типа обычно нужен, когда связывает:
-
-* аргумент и результат;
-* несколько аргументов;
-* элементы массива и результат преобразования;
-* объект и его ключ;
-* ключ и тип значения;
-* сущность и тип идентификатора.
-
-Если обычный тип решает задачу без потери информации, дженерик добавлять не следует.
-
----
-
-### 5. Почему `parse<T>` без валидации небезопасен?
-
-Рассмотрим функцию:
+Итоговый тип:
 
 ```ts
-function parse<T>(text: string): T {
-  return JSON.parse(text) as T;
-}
-```
-
-Параметр `T` никак не связан с содержимым строки.
-
-Вызывающий код может указать любой тип:
-
-```ts
-type Product = {
-  id: number;
-  title: string;
+type UserStrings = {
+  name: string;
+  email: string;
 };
-
-const product = parse<Product>("null");
 ```
 
-TypeScript считает, что переменная `product` содержит `Product`.
-
-Но фактическое значение:
+Основной механизм фильтрации:
 
 ```ts
-null
+[K in keyof T as
+  условие ? K : never
+]
 ```
 
-Следующее обращение приведёт к ошибке во время выполнения:
-
-```ts
-console.log(product.title);
-```
-
-Проблема заключается в утверждении:
-
-```ts
-as T
-```
-
-Оно заставляет TypeScript поверить разработчику, но не проверяет реальные данные.
-
-Безопаснее вернуть `unknown`:
-
-```ts
-function parse(text: string): unknown {
-  return JSON.parse(text);
-}
-```
-
-После этого данные необходимо проверить во время выполнения.
-
-Можно также передать функцию валидации:
-
-```ts
-function parseWithValidation<T>(
-  text: string,
-  isValid: (value: unknown) => value is T,
-): T {
-  const value: unknown = JSON.parse(text);
-
-  if (!isValid(value)) {
-    throw new Error(
-      "Структура данных не соответствует ожидаемому типу",
-    );
-  }
-
-  return value;
-}
-```
-
-Такой вариант связывает `T` с реальной runtime-проверкой.
+Ключи, преобразованные в `never`, не попадают в результат.
 
 ---
 
@@ -332,903 +417,1148 @@ function parseWithValidation<T>(
 
 ## Задание 1. Модели данных
 
-### Интерфейс `Entity`
-
-Создадим универсальный интерфейс сущности:
+### Тип `User`
 
 ```ts
-interface Entity<TId> {
-  readonly id: TId;
-}
-```
-
-Параметр `TId` определяет тип идентификатора.
-
----
-
-### Интерфейс `Product`
-
-У товара будет числовой идентификатор:
-
-```ts
-interface Product extends Entity<number> {
-  title: string;
-  price: number;
-  categoryId: string;
-  available: boolean;
-}
-```
-
-Поле `categoryId` является строкой, потому что категории будут использовать строковые идентификаторы.
-
----
-
-### Интерфейс `Category`
-
-У категории будет строковый идентификатор:
-
-```ts
-interface Category extends Entity<string> {
-  title: string;
-  description: string;
-}
-```
-
-Теперь TypeScript различает типы идентификаторов:
-
-```ts
-const product: Product = {
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true,
-};
-
-const category: Category = {
-  id: "keyboards",
-  title: "Клавиатуры",
-  description: "Механические и мембранные клавиатуры",
+type User = {
+  id: number;
+  name: string;
+  email: string;
 };
 ```
 
 ---
 
-## Задание 2. Generic-класс репозитория
-
-### Класс `Repository`
+### Тип `OrderStatus`
 
 ```ts
-class Repository<
-  TEntity extends Entity<TId>,
-  TId = string,
-> {
-  private readonly items =
-    new Map<TId, TEntity>();
-
-  save(entity: TEntity): void {
-    this.items.set(entity.id, entity);
-  }
-
-  findById(id: TId): TEntity | undefined {
-    return this.items.get(id);
-  }
-
-  findAll(): TEntity[] {
-    return [...this.items.values()];
-  }
-
-  remove(id: TId): boolean {
-    return this.items.delete(id);
-  }
-
-  has(id: TId): boolean {
-    return this.items.has(id);
-  }
-}
-```
-
-Параметр:
-
-```ts
-TEntity
-```
-
-определяет тип хранимой сущности.
-
-Параметр:
-
-```ts
-TId
-```
-
-определяет тип идентификатора.
-
-Ограничение:
-
-```ts
-TEntity extends Entity<TId>
-```
-
-гарантирует наличие у сущности свойства `id` правильного типа.
-
----
-
-### Репозиторий товаров
-
-```ts
-const productRepository =
-  new Repository<Product, number>();
-```
-
-Здесь:
-
-```text
-TEntity = Product
-TId = number
-```
-
-Сохраним товары:
-
-```ts
-productRepository.save({
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true,
-});
-
-productRepository.save({
-  id: 2,
-  title: "Мышь",
-  price: 3500,
-  categoryId: "mice",
-  available: true,
-});
-```
-
-Найти товар можно только по числовому идентификатору:
-
-```ts
-const foundProduct =
-  productRepository.findById(1);
-```
-
-Строковый идентификатор не подойдёт:
-
-```ts
-// Ошибка TypeScript:
-// productRepository.findById("1");
+type OrderStatus =
+  | "new"
+  | "paid"
+  | "cancelled";
 ```
 
 ---
 
-### Репозиторий категорий
+### Тип `Order`
 
 ```ts
-const categoryRepository =
-  new Repository<Category>();
-```
-
-Второй параметр не указан, поэтому используется значение по умолчанию:
-
-```ts
-TId = string
-```
-
-Сохраним категории:
-
-```ts
-categoryRepository.save({
-  id: "keyboards",
-  title: "Клавиатуры",
-  description:
-    "Механические и мембранные клавиатуры",
-});
-
-categoryRepository.save({
-  id: "mice",
-  title: "Компьютерные мыши",
-  description:
-    "Проводные и беспроводные мыши",
-});
-```
-
-Поиск выполняется по строковому идентификатору:
-
-```ts
-const foundCategory =
-  categoryRepository.findById("keyboards");
-```
-
-Число передать нельзя:
-
-```ts
-// Ошибка TypeScript:
-// categoryRepository.findById(1);
-```
-
----
-
-### Проверка методов репозитория
-
-```ts
-console.log(
-  productRepository.has(1),
-);
-
-console.log(
-  productRepository.findById(1),
-);
-
-console.log(
-  productRepository.findAll(),
-);
-
-console.log(
-  productRepository.remove(2),
-);
-
-console.log(
-  productRepository.has(2),
-);
-```
-
----
-
-## Задание 3. Универсальные функции работы с объектами
-
-### Функция получения свойства
-
-```ts
-function getProperty<
-  T,
-  K extends keyof T,
->(
-  object: T,
-  key: K,
-): T[K] {
-  return object[key];
-}
-```
-
-Использование:
-
-```ts
-const currentProduct: Product = {
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true,
+type Order = {
+  id: number;
+  userId: number;
+  amount: number;
+  status: OrderStatus;
 };
-
-const productTitle = getProperty(
-  currentProduct,
-  "title",
-);
-
-const productPrice = getProperty(
-  currentProduct,
-  "price",
-);
-
-const productAvailable = getProperty(
-  currentProduct,
-  "available",
-);
-```
-
-Полученные типы:
-
-```ts
-// productTitle: string
-// productPrice: number
-// productAvailable: boolean
-```
-
-Несуществующий ключ использовать нельзя:
-
-```ts
-// Ошибка TypeScript:
-// getProperty(currentProduct, "discount");
 ```
 
 ---
 
-### Функция обновления свойства
+### Тип `CreateOrderData`
+
+Для создания заказа идентификатор и статус готового заказа не нужны:
 
 ```ts
-function setProperty<
-  T,
-  K extends keyof T,
->(
-  object: T,
-  key: K,
-  value: T[K],
-): T {
-  return {
-    ...object,
-    [key]: value,
+type CreateOrderData = {
+  userId: number;
+  amount: number;
+};
+```
+
+Можно также вычислить этот тип из `Order`:
+
+```ts
+type ComputedCreateOrderData =
+  Omit<Order, "id" | "status">;
+```
+
+Результат будет таким же:
+
+```ts
+{
+  userId: number;
+  amount: number;
+}
+```
+
+---
+
+## Задание 2. Единая схема API
+
+Создадим схему, которая станет единственным источником информации о запросах и ответах.
+
+```ts
+type ApiSchema = {
+  users: {
+    get: {
+      request: {
+        limit?: number;
+      };
+      response: User[];
+    };
+
+    getById: {
+      request: {
+        id: number;
+      };
+      response: User;
+    };
   };
-}
+
+  order: {
+    create: {
+      request: CreateOrderData;
+      response: Order;
+    };
+
+    getById: {
+      request: {
+        id: number;
+      };
+      response: Order;
+    };
+  };
+};
 ```
 
-Изменим цену:
+В дальнейшем типы запросов, ответов, обработчиков и методов клиента будут вычисляться из `ApiSchema`.
+
+---
+
+## Задание 3. Имена ресурсов и операций
+
+### Тип `ResourceName`
+
+Получим все ключи верхнего уровня схемы:
 
 ```ts
-const productWithNewPrice =
-  setProperty(
-    currentProduct,
-    "price",
-    6990,
-  );
-```
-
-Изменим доступность:
-
-```ts
-const unavailableProduct =
-  setProperty(
-    currentProduct,
-    "available",
-    false,
-  );
-```
-
-Изменим название:
-
-```ts
-const renamedProduct =
-  setProperty(
-    currentProduct,
-    "title",
-    "Игровая клавиатура",
-  );
-```
-
-Передать значение неправильного типа нельзя:
-
-```ts
-// Ошибка TypeScript:
-// setProperty(
-//   currentProduct,
-//   "price",
-//   "6990",
-// );
-```
-
-```ts
-// Ошибка TypeScript:
-// setProperty(
-//   currentProduct,
-//   "available",
-//   "да",
-// );
-```
-
-Исходный объект не изменяется:
-
-```ts
-console.log(currentProduct.price);
-console.log(productWithNewPrice.price);
+type ResourceName =
+  keyof ApiSchema;
 ```
 
 Результат:
 
+```ts
+type ResourceName =
+  | "users"
+  | "order";
+```
+
+Проверка:
+
+```ts
+const usersResource:
+  ResourceName = "users";
+
+const orderResource:
+  ResourceName = "order";
+```
+
+Несуществующий ресурс использовать нельзя:
+
+```ts
+// Ошибка TypeScript:
+// const productResource:
+//   ResourceName = "products";
+```
+
+---
+
+### Тип `OperationName`
+
+Теперь получим операции конкретного ресурса:
+
+```ts
+type OperationName<
+  TResource extends ResourceName,
+> =
+  keyof ApiSchema[TResource];
+```
+
+Примеры:
+
+```ts
+type UserOperation =
+  OperationName<"users">;
+
+type OrderOperation =
+  OperationName<"order">;
+```
+
+Результаты:
+
+```ts
+// UserOperation:
+// "get" | "getById"
+
+// OrderOperation:
+// "create" | "getById"
+```
+
+Проверка:
+
+```ts
+const userOperation:
+  UserOperation = "get";
+
+const orderOperation:
+  OrderOperation = "create";
+```
+
+Неподходящая операция вызовет ошибку:
+
+```ts
+// Ошибка TypeScript:
+// const wrongUserOperation:
+//   UserOperation = "create";
+```
+
+---
+
+## Задание 4. Типы endpoint
+
+Нужно получить объединение строк следующего вида:
+
 ```text
-7500
-6990
+users:get
+users:getById
+order:create
+order:getById
+```
+
+Создадим mapped type:
+
+```ts
+type EndpointName = {
+  [TResource in ResourceName]:
+    `${TResource}:${
+      Extract<
+        OperationName<TResource>,
+        string
+      >
+    }`;
+}[ResourceName];
+```
+
+Разберём его по частям.
+
+Mapped type проходит по каждому ресурсу:
+
+```ts
+[TResource in ResourceName]
+```
+
+Для каждого ресурса строится строковый тип:
+
+```ts
+`${TResource}:${OperationName}`
+```
+
+Затем:
+
+```ts
+[ResourceName]
+```
+
+получает объединение всех значений созданного объекта.
+
+Результат:
+
+```ts
+type EndpointName =
+  | "users:get"
+  | "users:getById"
+  | "order:create"
+  | "order:getById";
+```
+
+Проверка:
+
+```ts
+const getUsersEndpoint:
+  EndpointName = "users:get";
+
+const createOrderEndpoint:
+  EndpointName = "order:create";
+```
+
+Несуществующий endpoint использовать нельзя:
+
+```ts
+// Ошибка TypeScript:
+// const wrongEndpoint:
+//   EndpointName = "users:create";
 ```
 
 ---
 
-## Задание 4. Универсальный тип ответа API
+## Задание 5. Параметры запроса и тип ответа
 
-### Успешный ответ
+Сначала создадим вспомогательный тип, который по имени endpoint получает соответствующее описание операции.
 
-```ts
-type ApiSuccess<TData> = {
-  status: "success";
-  data: TData;
-};
-```
-
-### Ответ с ошибкой
+### Тип `EndpointDefinition`
 
 ```ts
-type ApiFailure = {
-  status: "error";
-  message: string;
-  code: number;
-};
+type EndpointDefinition<
+  TEndpoint extends EndpointName,
+> =
+  TEndpoint extends
+    `${infer TResource}:${infer TOperation}`
+      ? TResource extends ResourceName
+        ? TOperation extends
+            keyof ApiSchema[TResource]
+          ? ApiSchema[TResource][TOperation]
+          : never
+        : never
+      : never;
 ```
 
-### Общий тип ответа
+Рассмотрим endpoint:
 
 ```ts
-type ApiResponse<TData> =
-  | ApiSuccess<TData>
-  | ApiFailure;
+"order:create"
 ```
 
-Поле `status` является дискриминатором.
+Template literal type разделяет его на две части:
 
-По нему TypeScript сможет определить конкретный вариант ответа.
+```ts
+TResource = "order"
+TOperation = "create"
+```
+
+После этого TypeScript получает:
+
+```ts
+ApiSchema["order"]["create"]
+```
+
+Результат:
+
+```ts
+{
+  request: CreateOrderData;
+  response: Order;
+}
+```
 
 ---
 
-### Ответ со списком товаров
+### Тип `RequestOf`
 
 ```ts
-const productsResponse:
-  ApiResponse<Product[]> = {
-    status: "success",
-    data: [
+type RequestOf<
+  TEndpoint extends EndpointName,
+> =
+  EndpointDefinition<TEndpoint>
+    extends {
+      request: infer TRequest;
+    }
+      ? TRequest
+      : never;
+```
+
+Примеры:
+
+```ts
+type GetUsersRequest =
+  RequestOf<"users:get">;
+
+type CreateOrderRequest =
+  RequestOf<"order:create">;
+```
+
+Результаты:
+
+```ts
+// GetUsersRequest:
+{
+  limit?: number;
+}
+```
+
+```ts
+// CreateOrderRequest:
+{
+  userId: number;
+  amount: number;
+}
+```
+
+---
+
+### Тип `ResponseOf`
+
+```ts
+type ResponseOf<
+  TEndpoint extends EndpointName,
+> =
+  EndpointDefinition<TEndpoint>
+    extends {
+      response: infer TResponse;
+    }
+      ? TResponse
+      : never;
+```
+
+Примеры:
+
+```ts
+type GetUsersResponse =
+  ResponseOf<"users:get">;
+
+type CreateOrderResponse =
+  ResponseOf<"order:create">;
+```
+
+Результаты:
+
+```ts
+// GetUsersResponse:
+User[]
+```
+
+```ts
+// CreateOrderResponse:
+Order
+```
+
+---
+
+### Проверка типов запросов
+
+```ts
+const getUsersRequest:
+  GetUsersRequest = {
+    limit: 10,
+  };
+```
+
+Параметр `limit` можно не передавать:
+
+```ts
+const getAllUsersRequest:
+  GetUsersRequest = {};
+```
+
+Создание заказа:
+
+```ts
+const createOrderRequest:
+  CreateOrderRequest = {
+    userId: 1,
+    amount: 5000,
+  };
+```
+
+Неправильный тип вызовет ошибку:
+
+```ts
+// Ошибка TypeScript:
+// const wrongRequest:
+//   CreateOrderRequest = {
+//     userId: "1",
+//     amount: 5000,
+//   };
+```
+
+Несуществующий endpoint передать нельзя благодаря ограничению:
+
+```ts
+TEndpoint extends EndpointName
+```
+
+```ts
+// Ошибка TypeScript:
+// type WrongResponse =
+//   ResponseOf<"products:get">;
+```
+
+---
+
+## Задание 6. Обработчик endpoint
+
+Создадим универсальный тип обработчика:
+
+```ts
+type EndpointHandler<
+  TEndpoint extends EndpointName,
+> = (
+  request: RequestOf<TEndpoint>,
+) =>
+  | ResponseOf<TEndpoint>
+  | Promise<ResponseOf<TEndpoint>>;
+```
+
+Обработчик может вернуть:
+
+* обычный результат;
+* `Promise` с результатом.
+
+---
+
+### Обработчик получения пользователей
+
+```ts
+type GetUsersHandler =
+  EndpointHandler<"users:get">;
+```
+
+Он эквивалентен следующему типу:
+
+```ts
+type GetUsersHandlerEquivalent = (
+  request: {
+    limit?: number;
+  },
+) => User[] | Promise<User[]>;
+```
+
+Реализация:
+
+```ts
+const getUsersHandler:
+  GetUsersHandler = (
+    request,
+  ) => {
+    const users: User[] = [
       {
         id: 1,
-        title: "Клавиатура",
-        price: 7500,
-        categoryId: "keyboards",
-        available: true,
+        name: "Анна",
+        email: "anna@example.com",
       },
       {
         id: 2,
-        title: "Мышь",
-        price: 3500,
-        categoryId: "mice",
-        available: false,
+        name: "Борис",
+        email: "boris@example.com",
       },
-    ],
-  };
-```
+    ];
 
----
-
-### Ответ со списком категорий
-
-```ts
-const categoriesResponse:
-  ApiResponse<Category[]> = {
-    status: "success",
-    data: [
-      {
-        id: "keyboards",
-        title: "Клавиатуры",
-        description:
-          "Механические и мембранные клавиатуры",
-      },
-      {
-        id: "mice",
-        title: "Компьютерные мыши",
-        description:
-          "Проводные и беспроводные мыши",
-      },
-    ],
-  };
-```
-
----
-
-### Ответ с ошибкой
-
-```ts
-const errorResponse:
-  ApiResponse<Product[]> = {
-    status: "error",
-    message:
-      "Не удалось загрузить каталог товаров",
-    code: 500,
-  };
-```
-
----
-
-### Обработка ответа
-
-```ts
-function printApiResponse<T>(
-  response: ApiResponse<T>,
-): void {
-  if (response.status === "success") {
-    console.log(response.data);
-    return;
-  }
-
-  console.log(
-    `Ошибка ${response.code}: ${response.message}`,
-  );
-}
-```
-
-Использование:
-
-```ts
-printApiResponse(productsResponse);
-printApiResponse(categoriesResponse);
-printApiResponse(errorResponse);
-```
-
----
-
-## Задание 5. Generic-класс кэша
-
-### Класс `Cache`
-
-Добавим в начало файла:
-
-```ts
-export {};
-```
-
-Это превращает файл в модуль и предотвращает возможный конфликт с глобальным браузерным интерфейсом `Cache`.
-
-Теперь реализуем собственный класс:
-
-```ts
-class Cache<TKey, TValue> {
-  private readonly items =
-    new Map<TKey, TValue>();
-
-  set(
-    key: TKey,
-    value: TValue,
-  ): void {
-    this.items.set(key, value);
-  }
-
-  get(
-    key: TKey,
-  ): TValue | undefined {
-    return this.items.get(key);
-  }
-
-  delete(key: TKey): boolean {
-    return this.items.delete(key);
-  }
-
-  has(key: TKey): boolean {
-    return this.items.has(key);
-  }
-
-  getOrSet(
-    key: TKey,
-    factory: () => TValue,
-  ): TValue {
-    const existingValue =
-      this.items.get(key);
-
-    if (existingValue !== undefined) {
-      return existingValue;
+    if (
+      request.limit === undefined
+    ) {
+      return users;
     }
 
-    const newValue = factory();
-
-    this.items.set(key, newValue);
-
-    return newValue;
-  }
-}
+    return users.slice(
+      0,
+      request.limit,
+    );
+  };
 ```
 
 ---
 
-### Кэш товаров
+### Обработчик создания заказа
 
 ```ts
-const productCache =
-  new Cache<number, Product>();
+type CreateOrderHandler =
+  EndpointHandler<"order:create">;
 ```
 
-Сохраним товар:
+Реализация:
 
 ```ts
-productCache.set(1, {
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true,
-});
+const createOrderHandler:
+  CreateOrderHandler = async (
+    request,
+  ) => {
+    return {
+      id: 101,
+      userId: request.userId,
+      amount: request.amount,
+      status: "new",
+    };
+  };
 ```
 
-Получим товар:
+TypeScript знает, что `request` имеет тип:
 
 ```ts
-const cachedProduct =
-  productCache.get(1);
+CreateOrderData
 ```
 
-Тип результата:
-
-```ts
-Product | undefined
-```
-
-Поэтому отсутствие значения необходимо учитывать:
-
-```ts
-if (cachedProduct) {
-  console.log(cachedProduct.title);
-}
-```
+Возвращаемое значение должно соответствовать типу `Order`.
 
 ---
 
-### Метод `getOrSet`
+## Задание 7. Карта обработчиков
+
+Создадим mapped type:
 
 ```ts
-const productFromCache =
-  productCache.getOrSet(
-    2,
-    () => ({
-      id: 2,
-      title: "Мышь",
-      price: 3500,
-      categoryId: "mice",
-      available: true,
-    }),
-  );
-```
-
-Если ключ `2` уже существует, фабрика не вызывается.
-
-Если ключ отсутствует:
-
-1. вызывается функция-фабрика;
-2. создаётся значение;
-3. значение помещается в кэш;
-4. значение возвращается из метода.
-
----
-
-### Кэш строковых значений
-
-Один и тот же класс можно использовать с другими типами:
-
-```ts
-const settingsCache =
-  new Cache<string, boolean>();
-
-settingsCache.set("darkMode", true);
-
-console.log(
-  settingsCache.get("darkMode"),
-);
-```
-
-Ключ имеет тип `string`, а значение — `boolean`.
-
----
-
-## Задание 6. Параметры типов по умолчанию
-
-### Стандартная метаинформация
-
-```ts
-type DefaultPaginationMeta = {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
+type ApiHandlers = {
+  [TEndpoint in EndpointName]:
+    EndpointHandler<TEndpoint>;
 };
 ```
 
-### Универсальный постраничный ответ
+Результат будет эквивалентен следующему:
 
 ```ts
-type PaginatedResponse<
-  TItem,
-  TMeta = DefaultPaginationMeta,
-> = {
-  items: TItem[];
-  meta: TMeta;
+type ApiHandlersEquivalent = {
+  "users:get":
+    EndpointHandler<"users:get">;
+
+  "users:getById":
+    EndpointHandler<"users:getById">;
+
+  "order:create":
+    EndpointHandler<"order:create">;
+
+  "order:getById":
+    EndpointHandler<"order:getById">;
 };
 ```
 
-Параметр `TItem` является обязательным.
-
-Параметр `TMeta` имеет значение по умолчанию:
+Теперь создадим объект обработчиков:
 
 ```ts
-DefaultPaginationMeta
-```
+const handlers: ApiHandlers = {
+  "users:get": (
+    request,
+  ) => {
+    const users: User[] = [
+      {
+        id: 1,
+        name: "Анна",
+        email: "anna@example.com",
+      },
+      {
+        id: 2,
+        name: "Борис",
+        email: "boris@example.com",
+      },
+    ];
 
----
+    if (
+      request.limit === undefined
+    ) {
+      return users;
+    }
 
-### Стандартная пагинация
+    return users.slice(
+      0,
+      request.limit,
+    );
+  },
 
-```ts
-type ProductPage =
-  PaginatedResponse<Product>;
-```
+  "users:getById": (
+    request,
+  ) => {
+    return {
+      id: request.id,
+      name: "Анна",
+      email: "anna@example.com",
+    };
+  },
 
-Создадим страницу товаров:
+  "order:create": async (
+    request,
+  ) => {
+    return {
+      id: 101,
+      userId: request.userId,
+      amount: request.amount,
+      status: "new",
+    };
+  },
 
-```ts
-const productPage: ProductPage = {
-  items: [
-    {
-      id: 1,
-      title: "Клавиатура",
-      price: 7500,
-      categoryId: "keyboards",
-      available: true,
-    },
-    {
-      id: 2,
-      title: "Мышь",
-      price: 3500,
-      categoryId: "mice",
-      available: true,
-    },
-  ],
-  meta: {
-    page: 1,
-    pageSize: 10,
-    total: 2,
-    totalPages: 1,
+  "order:getById": (
+    request,
+  ) => {
+    return {
+      id: request.id,
+      userId: 1,
+      amount: 5000,
+      status: "paid",
+    };
   },
 };
 ```
 
-Поскольку второй параметр не передан, используется стандартный тип метаданных.
+TypeScript проверяет:
+
+* наличие всех обязательных endpoint;
+* параметры каждого обработчика;
+* возвращаемые значения;
+* отсутствие неизвестных ключей.
+
+Если удалить обработчик, возникнет ошибка:
+
+```ts
+// Ошибка TypeScript:
+// отсутствует обязательный endpoint
+// "order:getById"
+```
+
+Если вернуть неправильный результат:
+
+```ts
+// Ошибка TypeScript:
+// "order:create": () => {
+//   return "Заказ создан";
+// },
+```
+
+Строка не соответствует типу `Order`.
 
 ---
 
-### Собственная структура метаданных
+## Задание 8. Имена методов API-клиента
 
-Некоторые API используют курсор вместо номера страницы.
+Нужно преобразовать endpoint:
+
+```text
+users:get
+```
+
+в имя:
+
+```text
+getUsers
+```
+
+А:
+
+```text
+order:create
+```
+
+в:
+
+```text
+createOrder
+```
+
+Сначала создадим тип преобразования имени ресурса.
 
 ```ts
-type CursorPaginationMeta = {
-  nextCursor: string | null;
-  hasMore: boolean;
+type SingularResourceName<
+  TResource extends string,
+> =
+  TResource extends "users"
+    ? "Users"
+    : Capitalize<TResource>;
+```
+
+Для текущей схемы:
+
+```ts
+// SingularResourceName<"users">
+// "Users"
+
+// SingularResourceName<"order">
+// "Order"
+```
+
+Теперь создадим имя метода на основе endpoint:
+
+```ts
+type MethodNameOf<
+  TEndpoint extends EndpointName,
+> =
+  TEndpoint extends
+    `${infer TResource}:${infer TOperation}`
+      ? TResource extends ResourceName
+        ? TOperation extends string
+          ? `${
+              TOperation
+            }${
+              SingularResourceName<
+                TResource
+              >
+            }`
+          : never
+        : never
+      : never;
+```
+
+Получим все имена методов:
+
+```ts
+type ClientMethodName =
+  MethodNameOf<EndpointName>;
+```
+
+Результат:
+
+```ts
+type ClientMethodName =
+  | "getUsers"
+  | "getByIdUsers"
+  | "createOrder"
+  | "getByIdOrder";
+```
+
+Проверка:
+
+```ts
+const clientMethod:
+  ClientMethodName =
+    "createOrder";
+```
+
+Несуществующее имя вызовет ошибку:
+
+```ts
+// Ошибка TypeScript:
+// const wrongMethod:
+//   ClientMethodName =
+//     "deleteOrder";
+```
+
+---
+
+## Задание 9. Тип API-клиента
+
+Нужно создать объект, в котором ключи endpoint будут переименованы в имена методов.
+
+```ts
+type ApiClient = {
+  [TEndpoint in EndpointName as
+    MethodNameOf<TEndpoint>
+  ]: (
+    request:
+      RequestOf<TEndpoint>,
+  ) => Promise<
+    ResponseOf<TEndpoint>
+  >;
 };
 ```
 
-Передадим собственный тип:
+Mapped type проходит по каждому endpoint:
 
 ```ts
-type CursorProductPage =
-  PaginatedResponse<
-    Product,
-    CursorPaginationMeta
-  >;
+TEndpoint in EndpointName
 ```
 
-Создадим значение:
+С помощью `as` ключ переименовывается:
 
 ```ts
-const cursorProductPage:
-  CursorProductPage = {
-    items: [
+as MethodNameOf<TEndpoint>
+```
+
+Тип параметра вычисляется через:
+
+```ts
+RequestOf<TEndpoint>
+```
+
+Тип результата вычисляется через:
+
+```ts
+ResponseOf<TEndpoint>
+```
+
+Тип `ApiClient` будет эквивалентен следующему:
+
+```ts
+type ApiClientEquivalent = {
+  getUsers(
+    request: {
+      limit?: number;
+    },
+  ): Promise<User[]>;
+
+  getByIdUsers(
+    request: {
+      id: number;
+    },
+  ): Promise<User>;
+
+  createOrder(
+    request: CreateOrderData,
+  ): Promise<Order>;
+
+  getByIdOrder(
+    request: {
+      id: number;
+    },
+  ): Promise<Order>;
+};
+```
+
+Все методы были вычислены из `ApiSchema`.
+
+---
+
+## Задание 10. Реализация API-клиента
+
+Создадим объект клиента:
+
+```ts
+const apiClient: ApiClient = {
+  async getUsers(request) {
+    const users: User[] = [
+      {
+        id: 1,
+        name: "Анна",
+        email: "anna@example.com",
+      },
+      {
+        id: 2,
+        name: "Борис",
+        email: "boris@example.com",
+      },
       {
         id: 3,
-        title: "Монитор",
-        price: 32000,
-        categoryId: "monitors",
-        available: true,
+        name: "Виктор",
+        email: "viktor@example.com",
       },
-    ],
-    meta: {
-      nextCursor: "product-3",
-      hasMore: true,
-    },
+    ];
+
+    if (
+      request.limit === undefined
+    ) {
+      return users;
+    }
+
+    return users.slice(
+      0,
+      request.limit,
+    );
+  },
+
+  async getByIdUsers(request) {
+    return {
+      id: request.id,
+      name: "Анна",
+      email: "anna@example.com",
+    };
+  },
+
+  async createOrder(request) {
+    return {
+      id: 101,
+      userId: request.userId,
+      amount: request.amount,
+      status: "new",
+    };
+  },
+
+  async getByIdOrder(request) {
+    return {
+      id: request.id,
+      userId: 1,
+      amount: 5000,
+      status: "paid",
+    };
+  },
+};
+```
+
+---
+
+### Получение пользователей
+
+```ts
+async function runUsersExample():
+  Promise<void> {
+  const users =
+    await apiClient.getUsers({
+      limit: 2,
+    });
+
+  console.log(users);
+}
+```
+
+Тип переменной `users`:
+
+```ts
+User[]
+```
+
+---
+
+### Получение пользователя по идентификатору
+
+```ts
+async function runUserExample():
+  Promise<void> {
+  const user =
+    await apiClient.getByIdUsers({
+      id: 1,
+    });
+
+  console.log(user.name);
+}
+```
+
+Тип переменной `user`:
+
+```ts
+User
+```
+
+---
+
+### Создание заказа
+
+```ts
+async function runOrderExample():
+  Promise<void> {
+  const order =
+    await apiClient.createOrder({
+      userId: 1,
+      amount: 5000,
+    });
+
+  console.log(order.status);
+}
+```
+
+Тип переменной `order`:
+
+```ts
+Order
+```
+
+---
+
+### Проверка ошибок
+
+Нельзя пропустить обязательный параметр:
+
+```ts
+// Ошибка TypeScript:
+// apiClient.getByIdUsers({});
+```
+
+Нельзя передать неправильный тип:
+
+```ts
+// Ошибка TypeScript:
+// apiClient.getByIdUsers({
+//   id: "1",
+// });
+```
+
+Нельзя добавить неизвестное свойство:
+
+```ts
+// Ошибка TypeScript:
+// apiClient.createOrder({
+//   userId: 1,
+//   amount: 5000,
+//   discount: 10,
+// });
+```
+
+Нельзя вызвать несуществующий метод:
+
+```ts
+// Ошибка TypeScript:
+// apiClient.deleteOrder({
+//   id: 1,
+// });
+```
+
+Нельзя вернуть результат неправильного типа:
+
+```ts
+// Ошибка TypeScript:
+// const wrongClient: ApiClient = {
+//   ...
+//
+//   async createOrder() {
+//     return "Заказ создан";
+//   },
+// };
+```
+
+---
+
+## Задание 11. Добавление нового endpoint
+
+Добавим операцию получения всех заказов:
+
+```ts
+type ExtendedApiSchema = {
+  users: {
+    get: {
+      request: {
+        limit?: number;
+      };
+      response: User[];
+    };
+
+    getById: {
+      request: {
+        id: number;
+      };
+      response: User;
+    };
   };
+
+  order: {
+    create: {
+      request: CreateOrderData;
+      response: Order;
+    };
+
+    getById: {
+      request: {
+        id: number;
+      };
+      response: Order;
+    };
+
+    getAll: {
+      request: {
+        userId?: number;
+      };
+      response: Order[];
+    };
+  };
+};
 ```
 
-В этом случае стандартный тип метаданных не используется.
-
----
-
-## Задание 7. Плохие дженерики
-
-### Пример 1. Небезопасный `parse<T>`
-
-Исходная сигнатура:
+Чтобы все вычисляемые типы обновились, достаточно использовать новую схему как основную:
 
 ```ts
-function parse<T>(text: string): T;
+type ApiSchema =
+  ExtendedApiSchema;
 ```
 
-Параметр `T` используется только в возвращаемом типе и никак не связан со входными данными.
-
-Вызывающий код может потребовать любой результат:
+После этого тип endpoint автоматически получит новое значение:
 
 ```ts
-const product =
-  parse<Product>("null");
+"order:getAll"
 ```
 
-TypeScript поверит, что результат является `Product`, хотя реальное значение может быть любым.
-
-Более безопасные варианты:
-
-* возвращать `unknown`;
-* проверять результат после `JSON.parse`;
-* принимать функцию-валидатор;
-* использовать библиотеку runtime-валидации.
-
-Например, функция может возвращать:
+Имя метода клиента:
 
 ```ts
-unknown
+getAllOrder
 ```
 
-А конкретный тип должен быть подтверждён отдельной проверкой.
-
----
-
-### Пример 2. Бесполезный параметр типа
-
-Исходная сигнатура:
+Тип запроса:
 
 ```ts
-function length<
-  T extends { length: number },
->(
-  value: T,
-): number;
+{
+  userId?: number;
+}
 ```
 
-Функция использует только свойство `length` и возвращает обычное число.
-
-Полный тип `T` нигде больше не применяется.
-
-Следовательно, никакой связи между типами не сохраняется.
-
-Достаточно обычного параметра:
+Тип ответа:
 
 ```ts
-value: { length: number }
+Order[]
 ```
 
-Дженерик понадобился бы, если бы функция возвращала исходное значение или связывала его с другой частью контракта.
-
----
-
-### Пример 3. Слишком много параметров типов
-
-Исходная сигнатура:
+Карта обработчиков потребует новый обработчик:
 
 ```ts
-function process<
-  T,
-  U,
-  V,
-  W,
-  X,
-  Y,
-  Z
->(...);
+"order:getAll"
 ```
 
-Большое количество параметров типов не является автоматической ошибкой.
+А `ApiClient` потребует новый метод:
 
-Однако такая сигнатура часто указывает на проблемы проектирования:
-
-* функция выполняет слишком много обязанностей;
-* параметры имеют неинформативные названия;
-* связанные параметры можно объединить;
-* API трудно читать и использовать;
-* разработчику сложно понять назначение каждого типа.
-
-Вместо однобуквенных названий лучше использовать понятные:
-
-```text
-TInput
-TOutput
-TError
-TContext
+```ts
+getAllOrder
 ```
 
-Часть параметров можно объединить в именованный интерфейс конфигурации.
-
-Саму функцию можно разделить на несколько меньших функций.
-
-Каждый параметр типа должен выражать отдельную полезную связь.
+Другие вычисляемые типы вручную менять не потребуется.
 
 ---
 
@@ -1237,503 +1567,495 @@ TContext
 ```ts
 export {};
 
-interface Entity<TId> {
-  readonly id: TId;
-}
+type User = {
+  id: number;
+  name: string;
+  email: string;
+};
 
-interface Product extends Entity<number> {
-  title: string;
-  price: number;
-  categoryId: string;
-  available: boolean;
-}
+type OrderStatus =
+  | "new"
+  | "paid"
+  | "cancelled";
 
-interface Category extends Entity<string> {
-  title: string;
-  description: string;
-}
+type Order = {
+  id: number;
+  userId: number;
+  amount: number;
+  status: OrderStatus;
+};
 
-class Repository<
-  TEntity extends Entity<TId>,
-  TId = string,
-> {
-  private readonly items =
-    new Map<TId, TEntity>();
+type CreateOrderData =
+  Omit<Order, "id" | "status">;
 
-  save(entity: TEntity): void {
-    this.items.set(entity.id, entity);
-  }
+type ApiSchema = {
+  users: {
+    get: {
+      request: {
+        limit?: number;
+      };
+      response: User[];
+    };
 
-  findById(id: TId): TEntity | undefined {
-    return this.items.get(id);
-  }
-
-  findAll(): TEntity[] {
-    return [...this.items.values()];
-  }
-
-  remove(id: TId): boolean {
-    return this.items.delete(id);
-  }
-
-  has(id: TId): boolean {
-    return this.items.has(id);
-  }
-}
-
-function getProperty<
-  T,
-  K extends keyof T,
->(
-  object: T,
-  key: K,
-): T[K] {
-  return object[key];
-}
-
-function setProperty<
-  T,
-  K extends keyof T,
->(
-  object: T,
-  key: K,
-  value: T[K],
-): T {
-  return {
-    ...object,
-    [key]: value,
+    getById: {
+      request: {
+        id: number;
+      };
+      response: User;
+    };
   };
-}
 
-type ApiSuccess<TData> = {
-  status: "success";
-  data: TData;
+  order: {
+    create: {
+      request: CreateOrderData;
+      response: Order;
+    };
+
+    getById: {
+      request: {
+        id: number;
+      };
+      response: Order;
+    };
+
+    getAll: {
+      request: {
+        userId?: number;
+      };
+      response: Order[];
+    };
+  };
 };
 
-type ApiFailure = {
-  status: "error";
-  message: string;
-  code: number;
+type ResourceName =
+  keyof ApiSchema;
+
+type OperationName<
+  TResource extends ResourceName,
+> =
+  keyof ApiSchema[TResource];
+
+type EndpointName = {
+  [TResource in ResourceName]:
+    `${TResource}:${
+      Extract<
+        OperationName<TResource>,
+        string
+      >
+    }`;
+}[ResourceName];
+
+type EndpointDefinition<
+  TEndpoint extends EndpointName,
+> =
+  TEndpoint extends
+    `${infer TResource}:${infer TOperation}`
+      ? TResource extends ResourceName
+        ? TOperation extends
+            keyof ApiSchema[TResource]
+          ? ApiSchema[TResource][TOperation]
+          : never
+        : never
+      : never;
+
+type RequestOf<
+  TEndpoint extends EndpointName,
+> =
+  EndpointDefinition<TEndpoint>
+    extends {
+      request: infer TRequest;
+    }
+      ? TRequest
+      : never;
+
+type ResponseOf<
+  TEndpoint extends EndpointName,
+> =
+  EndpointDefinition<TEndpoint>
+    extends {
+      response: infer TResponse;
+    }
+      ? TResponse
+      : never;
+
+type EndpointHandler<
+  TEndpoint extends EndpointName,
+> = (
+  request: RequestOf<TEndpoint>,
+) =>
+  | ResponseOf<TEndpoint>
+  | Promise<ResponseOf<TEndpoint>>;
+
+type ApiHandlers = {
+  [TEndpoint in EndpointName]:
+    EndpointHandler<TEndpoint>;
 };
 
-type ApiResponse<TData> =
-  | ApiSuccess<TData>
-  | ApiFailure;
+type SingularResourceName<
+  TResource extends string,
+> =
+  TResource extends "users"
+    ? "Users"
+    : Capitalize<TResource>;
 
-function printApiResponse<TData>(
-  response: ApiResponse<TData>,
-): void {
-  if (response.status === "success") {
-    console.log(response.data);
-    return;
-  }
+type MethodNameOf<
+  TEndpoint extends EndpointName,
+> =
+  TEndpoint extends
+    `${infer TResource}:${infer TOperation}`
+      ? TResource extends ResourceName
+        ? TOperation extends string
+          ? `${
+              TOperation
+            }${
+              SingularResourceName<
+                TResource
+              >
+            }`
+          : never
+        : never
+      : never;
 
-  console.log(
-    `Ошибка ${response.code}: ${response.message}`,
-  );
-}
+type ClientMethodName =
+  MethodNameOf<EndpointName>;
 
-class Cache<TKey, TValue> {
-  private readonly items =
-    new Map<TKey, TValue>();
+type ApiClient = {
+  [TEndpoint in EndpointName as
+    MethodNameOf<TEndpoint>
+  ]: (
+    request:
+      RequestOf<TEndpoint>,
+  ) => Promise<
+    ResponseOf<TEndpoint>
+  >;
+};
 
-  set(
-    key: TKey,
-    value: TValue,
-  ): void {
-    this.items.set(key, value);
-  }
+const handlers: ApiHandlers = {
+  "users:get": (
+    request,
+  ) => {
+    const users: User[] = [
+      {
+        id: 1,
+        name: "Анна",
+        email: "anna@example.com",
+      },
+      {
+        id: 2,
+        name: "Борис",
+        email: "boris@example.com",
+      },
+      {
+        id: 3,
+        name: "Виктор",
+        email: "viktor@example.com",
+      },
+    ];
 
-  get(
-    key: TKey,
-  ): TValue | undefined {
-    return this.items.get(key);
-  }
-
-  delete(key: TKey): boolean {
-    return this.items.delete(key);
-  }
-
-  has(key: TKey): boolean {
-    return this.items.has(key);
-  }
-
-  getOrSet(
-    key: TKey,
-    factory: () => TValue,
-  ): TValue {
-    const existingValue =
-      this.items.get(key);
-
-    if (existingValue !== undefined) {
-      return existingValue;
+    if (
+      request.limit === undefined
+    ) {
+      return users;
     }
 
-    const newValue = factory();
+    return users.slice(
+      0,
+      request.limit,
+    );
+  },
 
-    this.items.set(key, newValue);
+  "users:getById": (
+    request,
+  ) => {
+    return {
+      id: request.id,
+      name: "Анна",
+      email: "anna@example.com",
+    };
+  },
 
-    return newValue;
-  }
+  "order:create": async (
+    request,
+  ) => {
+    return {
+      id: 101,
+      userId: request.userId,
+      amount: request.amount,
+      status: "new",
+    };
+  },
+
+  "order:getById": (
+    request,
+  ) => {
+    return {
+      id: request.id,
+      userId: 1,
+      amount: 5000,
+      status: "paid",
+    };
+  },
+
+  "order:getAll": (
+    request,
+  ) => {
+    const orders: Order[] = [
+      {
+        id: 101,
+        userId: 1,
+        amount: 5000,
+        status: "paid",
+      },
+      {
+        id: 102,
+        userId: 2,
+        amount: 3200,
+        status: "new",
+      },
+      {
+        id: 103,
+        userId: 1,
+        amount: 7400,
+        status: "cancelled",
+      },
+    ];
+
+    if (
+      request.userId === undefined
+    ) {
+      return orders;
+    }
+
+    return orders.filter(
+      (order) =>
+        order.userId ===
+        request.userId,
+    );
+  },
+};
+
+const apiClient: ApiClient = {
+  async getUsers(request) {
+    const result =
+      await handlers["users:get"](
+        request,
+      );
+
+    return result;
+  },
+
+  async getByIdUsers(request) {
+    const result =
+      await handlers[
+        "users:getById"
+      ](request);
+
+    return result;
+  },
+
+  async createOrder(request) {
+    const result =
+      await handlers[
+        "order:create"
+      ](request);
+
+    return result;
+  },
+
+  async getByIdOrder(request) {
+    const result =
+      await handlers[
+        "order:getById"
+      ](request);
+
+    return result;
+  },
+
+  async getAllOrder(request) {
+    const result =
+      await handlers[
+        "order:getAll"
+      ](request);
+
+    return result;
+  },
+};
+
+async function run():
+  Promise<void> {
+  const users =
+    await apiClient.getUsers({
+      limit: 2,
+    });
+
+  console.log(
+    "Пользователи:",
+    users,
+  );
+
+  const user =
+    await apiClient.getByIdUsers({
+      id: 1,
+    });
+
+  console.log(
+    "Пользователь:",
+    user,
+  );
+
+  const createdOrder =
+    await apiClient.createOrder({
+      userId: 1,
+      amount: 5000,
+    });
+
+  console.log(
+    "Созданный заказ:",
+    createdOrder,
+  );
+
+  const order =
+    await apiClient.getByIdOrder({
+      id: 101,
+    });
+
+  console.log(
+    "Найденный заказ:",
+    order,
+  );
+
+  const userOrders =
+    await apiClient.getAllOrder({
+      userId: 1,
+    });
+
+  console.log(
+    "Заказы пользователя:",
+    userOrders,
+  );
+
+  const allOrders =
+    await apiClient.getAllOrder({});
+
+  console.log(
+    "Все заказы:",
+    allOrders,
+  );
 }
 
-type DefaultPaginationMeta = {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-};
-
-type PaginatedResponse<
-  TItem,
-  TMeta = DefaultPaginationMeta,
-> = {
-  items: TItem[];
-  meta: TMeta;
-};
-
-type CursorPaginationMeta = {
-  nextCursor: string | null;
-  hasMore: boolean;
-};
-
-const productRepository =
-  new Repository<Product, number>();
-
-const categoryRepository =
-  new Repository<Category>();
-
-const keyboardCategory: Category = {
-  id: "keyboards",
-  title: "Клавиатуры",
-  description:
-    "Механические и мембранные клавиатуры",
-};
-
-const mouseCategory: Category = {
-  id: "mice",
-  title: "Компьютерные мыши",
-  description:
-    "Проводные и беспроводные мыши",
-};
-
-categoryRepository.save(
-  keyboardCategory,
-);
-
-categoryRepository.save(
-  mouseCategory,
-);
-
-const keyboard: Product = {
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true,
-};
-
-const mouse: Product = {
-  id: 2,
-  title: "Мышь",
-  price: 3500,
-  categoryId: "mice",
-  available: true,
-};
-
-productRepository.save(keyboard);
-productRepository.save(mouse);
-
-console.log(
-  "Все товары:",
-  productRepository.findAll(),
-);
-
-console.log(
-  "Товар с id 1:",
-  productRepository.findById(1),
-);
-
-console.log(
-  "Существует товар с id 2:",
-  productRepository.has(2),
-);
-
-console.log(
-  "Все категории:",
-  categoryRepository.findAll(),
-);
-
-const keyboardTitle =
-  getProperty(
-    keyboard,
-    "title",
-  );
-
-const keyboardPrice =
-  getProperty(
-    keyboard,
-    "price",
-  );
-
-console.log(
-  "Название:",
-  keyboardTitle,
-);
-
-console.log(
-  "Цена:",
-  keyboardPrice,
-);
-
-const discountedKeyboard =
-  setProperty(
-    keyboard,
-    "price",
-    6990,
-  );
-
-const unavailableKeyboard =
-  setProperty(
-    discountedKeyboard,
-    "available",
-    false,
-  );
-
-console.log(
-  "Исходный товар:",
-  keyboard,
-);
-
-console.log(
-  "Обновлённый товар:",
-  unavailableKeyboard,
-);
+void run();
 
 // Ожидаемые ошибки TypeScript:
 
 // @ts-expect-error:
-// свойства discount нет у Product
-getProperty(
-  keyboard,
-  "discount",
-);
+// ресурс products отсутствует
+const wrongEndpoint:
+  EndpointName = "products:get";
 
 // @ts-expect-error:
-// price ожидает number
-setProperty(
-  keyboard,
-  "price",
-  "6990",
-);
+// операция create отсутствует
+// у ресурса users
+const wrongUsersEndpoint:
+  EndpointName = "users:create";
 
 // @ts-expect-error:
-// available ожидает boolean
-setProperty(
-  keyboard,
-  "available",
-  "да",
-);
+// id должен быть number
+apiClient.getByIdUsers({
+  id: "1",
+});
 
-const productsResponse:
-  ApiResponse<Product[]> = {
-    status: "success",
-    data: productRepository.findAll(),
-  };
+// @ts-expect-error:
+// отсутствует обязательное
+// свойство amount
+apiClient.createOrder({
+  userId: 1,
+});
 
-const categoriesResponse:
-  ApiResponse<Category[]> = {
-    status: "success",
-    data: categoryRepository.findAll(),
-  };
+// @ts-expect-error:
+// свойство discount отсутствует
+apiClient.createOrder({
+  userId: 1,
+  amount: 5000,
+  discount: 10,
+});
 
-const errorResponse:
-  ApiResponse<Product[]> = {
-    status: "error",
-    message:
-      "Не удалось загрузить каталог",
-    code: 500,
-  };
-
-printApiResponse(productsResponse);
-printApiResponse(categoriesResponse);
-printApiResponse(errorResponse);
-
-const productCache =
-  new Cache<number, Product>();
-
-productCache.set(
-  keyboard.id,
-  keyboard,
-);
-
-console.log(
-  "Товар из кэша:",
-  productCache.get(1),
-);
-
-const cachedMouse =
-  productCache.getOrSet(
-    mouse.id,
-    () => mouse,
-  );
-
-console.log(
-  "Созданное значение:",
-  cachedMouse,
-);
-
-const secondCachedMouse =
-  productCache.getOrSet(
-    mouse.id,
-    () => ({
-      id: mouse.id,
-      title: "Другое значение",
-      price: 1,
-      categoryId: "other",
-      available: false,
-    }),
-  );
-
-console.log(
-  "Существующее значение:",
-  secondCachedMouse,
-);
-
-console.log(
-  "Кэш содержит ключ 2:",
-  productCache.has(2),
-);
-
-console.log(
-  "Удаление ключа 2:",
-  productCache.delete(2),
-);
-
-console.log(
-  "Кэш содержит ключ 2:",
-  productCache.has(2),
-);
-
-const productPage:
-  PaginatedResponse<Product> = {
-    items:
-      productRepository.findAll(),
-    meta: {
-      page: 1,
-      pageSize: 10,
-      total: 2,
-      totalPages: 1,
-    },
-  };
-
-console.log(
-  "Стандартная пагинация:",
-  productPage,
-);
-
-const cursorProductPage:
-  PaginatedResponse<
-    Product,
-    CursorPaginationMeta
-  > = {
-    items: [
-      {
-        id: 3,
-        title: "Монитор",
-        price: 32000,
-        categoryId: "monitors",
-        available: true,
-      },
-    ],
-    meta: {
-      nextCursor: "product-3",
-      hasMore: true,
-    },
-  };
-
-console.log(
-  "Курсорная пагинация:",
-  cursorProductPage,
-);
+// @ts-expect-error:
+// такого метода нет
+apiClient.deleteOrder({
+  id: 1,
+});
 ```
 
 ## Пример результата
 
 ```text
-Все товары: [
+Пользователи: [
   {
     id: 1,
-    title: "Клавиатура",
-    price: 7500,
-    categoryId: "keyboards",
-    available: true
+    name: "Анна",
+    email: "anna@example.com"
   },
   {
     id: 2,
-    title: "Мышь",
-    price: 3500,
-    categoryId: "mice",
-    available: true
+    name: "Борис",
+    email: "boris@example.com"
   }
 ]
 
-Товар с id 1: {
+Пользователь: {
   id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true
+  name: "Анна",
+  email: "anna@example.com"
 }
 
-Существует товар с id 2: true
-
-Название: Клавиатура
-Цена: 7500
-
-Исходный товар: {
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true
+Созданный заказ: {
+  id: 101,
+  userId: 1,
+  amount: 5000,
+  status: "new"
 }
 
-Обновлённый товар: {
-  id: 1,
-  title: "Клавиатура",
-  price: 6990,
-  categoryId: "keyboards",
-  available: false
+Найденный заказ: {
+  id: 101,
+  userId: 1,
+  amount: 5000,
+  status: "paid"
 }
 
-Товар из кэша: {
-  id: 1,
-  title: "Клавиатура",
-  price: 7500,
-  categoryId: "keyboards",
-  available: true
-}
-
-Кэш содержит ключ 2: true
-Удаление ключа 2: true
-Кэш содержит ключ 2: false
-
-Стандартная пагинация: {
-  items: [...],
-  meta: {
-    page: 1,
-    pageSize: 10,
-    total: 2,
-    totalPages: 1
+Заказы пользователя: [
+  {
+    id: 101,
+    userId: 1,
+    amount: 5000,
+    status: "paid"
+  },
+  {
+    id: 103,
+    userId: 1,
+    amount: 7400,
+    status: "cancelled"
   }
-}
+]
 
-Курсорная пагинация: {
-  items: [...],
-  meta: {
-    nextCursor: "product-3",
-    hasMore: true
+Все заказы: [
+  {
+    id: 101,
+    userId: 1,
+    amount: 5000,
+    status: "paid"
+  },
+  {
+    id: 102,
+    userId: 2,
+    amount: 3200,
+    status: "new"
+  },
+  {
+    id: 103,
+    userId: 1,
+    amount: 7400,
+    status: "cancelled"
   }
-}
+]
 ```
+

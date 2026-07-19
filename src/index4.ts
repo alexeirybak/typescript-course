@@ -1,30 +1,10 @@
-// function getProperty<T, K extends keyof T>(object: T, key: K): T[K] {
-//   return object[key];
-// }
+type IsString<T> = T extends string ? true : false;
 
-// const user = {
-//   id: 1,
-//   name: "Анна",
-//   active: true,
-// };
+type A = IsString<"hello">;
+type B = IsString<number>;
 
-// const userName = getProperty(user, "active");
+type ArrayElement<T> = T extends readonly (infer TItem)[] ? TItem : never;
 
-function setPropertyUnsafe<T, K extends keyof T>(
-  object: T,
-  key: K,
-  value: T[K],
-): object {
-  return {
-    ...object,
-    [key]: value,
-  };
-}
-
-const user = {
-  id: 1,
-  name: "Анна",
-  active: true,
-};
-
-const userName = setPropertyUnsafe(user, "id", 2);
+type Item = ArrayElement<string[]>;
+type NumberItem = ArrayElement<number[]>;
+type WrongItem = ArrayElement<boolean>;

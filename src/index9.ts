@@ -1,11 +1,17 @@
-function length<T extends { length: number }>(value: T): number {
-  return value.length;
-}
+type Resource = "user" | "order";
 
-function simpleLength(value: { length: number }): number {
-  return value.length;
-}
+type Action = "create" | "update" | "delete" | "read";
 
-function first<T>(items: readonly T[]): T | undefined {
-  return items[0];
-}
+type Permission = `${Resource}:${Action}`;
+
+type EntityId = string | number;
+
+type DetailRoute = `/products/${EntityId}`;
+
+//const route: DetailRoute = "/products/42";
+
+//const route: DetailRoute = "/products/abc";
+
+//const route: DetailRoute = "/users/42";
+
+const route = window.location.pathname;

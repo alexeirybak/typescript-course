@@ -1,23 +1,28 @@
-function getPropertyUnsafe(object: object, key: string): unknown {
-  return (object as Record<string, unknown>)[key];
-}
-
-function getProperty<T, K extends keyof T>(object: T, key: K): T[K] {
-  return object[key];
-}
-
-// {
-//   id: number;
-//   name: string;
-//   active: boolean;
-// }
-
-const user = {
-  id: 1,
-  name: "Анна",
-  active: true,
+type User = {
+  id: number;
+  name: string;
+  active: boolean;
 };
 
-// keyof typeof user = "id" | "name" | "active"
+type UserName = User["name"];
 
-// const userName = getProperty(user, "email");
+const name: UserName = "Алексей";
+
+//type UserIdentity = User["id" | "name"];
+
+type UserIdentity = number | string;
+
+type ApiResponse = {
+  users: Array<{
+    id: number;
+    name: string;
+    email: string;
+  }>;
+};
+
+// type ApiUser = {
+//   id: number;
+//   name: string;
+// };
+
+type ApiUser = ApiResponse["users"][number];
