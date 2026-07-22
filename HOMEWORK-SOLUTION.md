@@ -2,1563 +2,1853 @@
 
 ## Контрольные вопросы
 
-### 1. Чем `typeof` в выражении отличается от `typeof` в типовой позиции?
+### 1. Чем `Partial<T>` отличается от `Required<T>`?
 
-В обычном JavaScript `typeof` работает во время выполнения программы.
-
-Он получает значение и возвращает строку с названием его типа:
-
-```ts
-const value = 42;
-
-console.log(typeof value);
-```
-
-Результат:
-
-```text
-number
-```
-
-В этом случае `typeof` является обычным JavaScript-оператором.
-
-Он возвращает одну из строк:
-
-```text
-"string"
-"number"
-"boolean"
-"undefined"
-"object"
-"function"
-"symbol"
-"bigint"
-```
-
-В TypeScript оператор `typeof` можно также использовать в типовой позиции.
-
-Например:
-
-```ts
-const defaultConfig = {
-  locale: "ru",
-  pageSize: 20,
-  darkMode: true,
-};
-
-type Config =
-  typeof defaultConfig;
-```
-
-В этом случае `typeof` не выполняется во время работы программы.
-
-TypeScript получает тип переменной `defaultConfig`.
-
-Тип `Config` будет эквивалентен следующему:
-
-```ts
-type Config = {
-  locale: string;
-  pageSize: number;
-  darkMode: boolean;
-};
-```
-
-Основное различие:
-
-* `typeof value` в выражении возвращает строку во время выполнения;
-* `typeof value` в типовой позиции получает тип переменной во время компиляции;
-* обычный `typeof` является частью JavaScript;
-* типовой `typeof` используется только TypeScript и исчезает после компиляции.
-
----
-
-### 2. Как получить тип элемента массива?
-
-Пусть существует массив:
-
-```ts
-const roles = [
-  "admin",
-  "editor",
-  "viewer",
-] as const;
-```
-
-Сначала получим тип самого массива:
-
-```ts
-type Roles =
-  typeof roles;
-```
-
-Он будет выглядеть примерно так:
-
-```ts
-readonly [
-  "admin",
-  "editor",
-  "viewer",
-]
-```
-
-Чтобы получить тип одного элемента массива, используется индексированный доступ с ключом `number`:
-
-```ts
-type Role =
-  (typeof roles)[number];
-```
-
-Результат:
-
-```ts
-type Role =
-  | "admin"
-  | "editor"
-  | "viewer";
-```
-
-Такая запись читается следующим образом:
-
-1. `typeof roles` получает тип массива;
-2. `[number]` получает тип любого его элемента.
-
-Для обычного типа массива используется тот же принцип:
-
-```ts
-type Users = Array<{
-  id: number;
-  name: string;
-}>;
-
-type User =
-  Users[number];
-```
-
-Тип `User`:
-
-```ts
-{
-  id: number;
-  name: string;
-}
-```
-
-Можно также создать универсальный условный тип:
-
-```ts
-type ArrayElement<T> =
-  T extends readonly (infer TItem)[]
-    ? TItem
-    : never;
-```
-
-Применение:
-
-```ts
-type StringItem =
-  ArrayElement<string[]>;
-
-type NumberItem =
-  ArrayElement<readonly number[]>;
-```
-
-Результаты:
-
-```ts
-// StringItem: string
-// NumberItem: number
-```
-
----
-
-### 3. Когда conditional type распределяется по union?
-
-Условный тип распределяется по объединению, когда слева от `extends` находится параметр типа без дополнительной оболочки.
-
-Например:
-
-```ts
-type ToArray<T> =
-  T extends unknown
-    ? T[]
-    : never;
-```
-
-Передадим объединение:
-
-```ts
-type Result =
-  ToArray<string | number>;
-```
-
-TypeScript применит условный тип отдельно к каждому элементу объединения:
-
-```ts
-ToArray<string>
-```
-
-даёт:
-
-```ts
-string[]
-```
-
-А:
-
-```ts
-ToArray<number>
-```
-
-даёт:
-
-```ts
-number[]
-```
-
-Итоговый результат:
-
-```ts
-type Result =
-  string[] | number[];
-```
-
-Такое поведение называется распределением условного типа по объединению.
-
-Чтобы отключить распределение, параметр типа можно обернуть в кортеж:
-
-```ts
-type ToArrayTogether<T> =
-  [T] extends [unknown]
-    ? T[]
-    : never;
-```
-
-Теперь:
-
-```ts
-type Together =
-  ToArrayTogether<string | number>;
-```
-
-Результат:
-
-```ts
-type Together =
-  (string | number)[];
-```
-
-Правило:
-
-* `T extends SomeType` — условие распределяется по union;
-* `[T] extends [SomeType]` — всё объединение проверяется как единый тип.
-
----
-
-### 4. Что делает `infer`?
-
-Ключевое слово `infer` позволяет извлечь часть сложного типа внутри условного типа.
-
-Например, получим возвращаемый тип функции:
-
-```ts
-type FunctionResult<T> =
-  T extends (
-    ...args: never[]
-  ) => infer TResult
-    ? TResult
-    : never;
-```
-
-Создадим функцию:
-
-```ts
-function createUser() {
-  return {
-    id: 1,
-    name: "Анна",
-  };
-}
-```
-
-Получим тип её результата:
-
-```ts
-type CreatedUser =
-  FunctionResult<
-    typeof createUser
-  >;
-```
-
-TypeScript сопоставляет тип функции с шаблоном:
-
-```ts
-(...args: never[]) => infer TResult
-```
-
-После этого сохраняет возвращаемый тип во временный параметр `TResult`.
-
-Результат:
-
-```ts
-type CreatedUser = {
-  id: number;
-  name: string;
-};
-```
-
-Другой пример — извлечение значения из `Promise`:
-
-```ts
-type PromiseValue<T> =
-  T extends Promise<infer TValue>
-    ? TValue
-    : T;
-```
-
-Использование:
-
-```ts
-type Result =
-  PromiseValue<Promise<number>>;
-```
-
-Результат:
-
-```ts
-number
-```
-
-`infer`:
-
-* используется внутри условного типа;
-* сопоставляет тип с определённым шаблоном;
-* извлекает нужную часть типа;
-* сохраняет найденный тип во временный параметр.
-
----
-
-### 5. Как mapped type фильтрует ключи?
-
-Mapped type может менять имя ключа с помощью конструкции `as`.
-
-Если вместо имени ключа получить `never`, свойство будет исключено из итогового типа.
-
-Создадим тип:
+`Partial<T>` делает все свойства исходного типа необязательными.
 
 ```ts
 type User = {
   id: number;
   name: string;
-  active: boolean;
   email: string;
 };
+
+type PartialUser =
+  Partial<User>;
 ```
 
-Оставим только строковые свойства:
+Получится тип:
 
 ```ts
-type StringProperties<T> = {
-  [K in keyof T as
-    T[K] extends string
-      ? K
-      : never
-  ]: T[K];
+type PartialUser = {
+  id?: number;
+  name?: string;
+  email?: string;
 };
 ```
 
-Применение:
+Объект может содержать только часть свойств:
 
 ```ts
-type UserStrings =
-  StringProperties<User>;
+const userDraft:
+  PartialUser = {
+    name: "Анна",
+  };
 ```
 
-Mapped type проходит по каждому ключу.
+`Required<T>` выполняет противоположное преобразование.
 
-Для свойства `id`:
+Он делает все свойства обязательными.
 
 ```ts
-number extends string
+type UserDraft = {
+  id?: number;
+  name?: string;
+  email?: string;
+};
+
+type CompleteUser =
+  Required<UserDraft>;
 ```
 
-Условие не выполняется, поэтому ключ превращается в `never`.
-
-Для свойства `name`:
+Получится:
 
 ```ts
-string extends string
-```
-
-Условие выполняется, поэтому ключ сохраняется.
-
-Итоговый тип:
-
-```ts
-type UserStrings = {
+type CompleteUser = {
+  id: number;
   name: string;
   email: string;
 };
 ```
 
-Основной механизм фильтрации:
+Основное отличие:
+
+* `Partial<T>` добавляет необязательность;
+* `Required<T>` удаляет необязательность;
+* оба utility type сохраняют исходные типы значений свойств.
+
+---
+
+### 2. Почему `Readonly<T>` не делает вложенные объекты полностью неизменяемыми?
+
+`Readonly<T>` выполняет только поверхностное преобразование.
+
+Рассмотрим тип:
 
 ```ts
-[K in keyof T as
-  условие ? K : never
-]
+type Product = {
+  title: string;
+  details: {
+    weight: number;
+  };
+  tags: string[];
+};
 ```
 
-Ключи, преобразованные в `never`, не попадают в результат.
+Применим `Readonly`:
+
+```ts
+type ReadonlyProduct =
+  Readonly<Product>;
+```
+
+Теперь нельзя заменить свойства верхнего уровня:
+
+```ts
+const product:
+  ReadonlyProduct = {
+    title: "Клавиатура",
+    details: {
+      weight: 800,
+    },
+    tags: [
+      "electronics",
+    ],
+  };
+```
+
+Следующая операция запрещена:
+
+```ts
+// Ошибка TypeScript:
+// product.title = "Мышь";
+```
+
+Нельзя заменить объект `details` целиком:
+
+```ts
+// Ошибка TypeScript:
+// product.details = {
+//   weight: 500,
+// };
+```
+
+Но свойства внутри `details` не стали `readonly`:
+
+```ts
+product.details.weight = 900;
+```
+
+Массив тоже остаётся изменяемым:
+
+```ts
+product.tags.push(
+  "computer",
+);
+```
+
+`Readonly<T>` добавляет `readonly` только к свойствам самого объекта.
+
+Для полной рекурсивной неизменяемости нужен отдельный тип, например `DeepReadonly<T>`.
+
+---
+
+### 3. Когда удобнее использовать `Pick<T, K>`, а когда `Omit<T, K>`?
+
+`Pick<T, K>` выбирает указанные свойства исходного типа.
+
+```ts
+type Product = {
+  id: number;
+  title: string;
+  price: number;
+  costPrice: number;
+  description: string;
+};
+```
+
+Если нужны только три свойства, удобно использовать `Pick`:
+
+```ts
+type ProductListItem =
+  Pick<
+    Product,
+    "id" | "title" | "price"
+  >;
+```
+
+Результат:
+
+```ts
+type ProductListItem = {
+  id: number;
+  title: string;
+  price: number;
+};
+```
+
+`Omit<T, K>` исключает указанные свойства.
+
+Если нужно оставить почти весь объект и удалить только одно поле, удобнее использовать `Omit`:
+
+```ts
+type PublicProduct =
+  Omit<Product, "costPrice">;
+```
+
+Результат:
+
+```ts
+type PublicProduct = {
+  id: number;
+  title: string;
+  price: number;
+  description: string;
+};
+```
+
+Правило выбора:
+
+* `Pick` удобен, когда нужно оставить небольшое количество свойств;
+* `Omit` удобен, когда нужно исключить небольшое количество свойств;
+* следует выбирать вариант, который яснее показывает структуру нового типа.
+
+---
+
+### 4. Чем `Omit<T, K>` отличается от `Exclude<T, U>`?
+
+`Omit<T, K>` работает с объектными типами.
+
+Он удаляет свойства объекта.
+
+```ts
+type Product = {
+  id: number;
+  title: string;
+  price: number;
+};
+
+type ProductWithoutId =
+  Omit<Product, "id">;
+```
+
+Результат:
+
+```ts
+type ProductWithoutId = {
+  title: string;
+  price: number;
+};
+```
+
+`Exclude<T, U>` работает с объединениями типов.
+
+Он удаляет из объединения указанные варианты.
+
+```ts
+type ProductStatus =
+  | "draft"
+  | "published"
+  | "archived";
+
+type ActiveProductStatus =
+  Exclude<
+    ProductStatus,
+    "archived"
+  >;
+```
+
+Результат:
+
+```ts
+type ActiveProductStatus =
+  | "draft"
+  | "published";
+```
+
+Основное отличие:
+
+* `Omit` исключает ключи объекта;
+* `Exclude` исключает варианты из union;
+* результатом `Omit` является объектный тип;
+* результатом `Exclude` является новое объединение.
+
+---
+
+### 5. Для чего используется `Record<K, V>`?
+
+`Record<K, V>` создаёт объектный тип с заданным набором ключей.
+
+Первый параметр определяет ключи объекта.
+
+Второй параметр определяет тип значений.
+
+```ts
+type ProductStatus =
+  | "draft"
+  | "published"
+  | "archived";
+```
+
+Создадим подписи для всех статусов:
+
+```ts
+const statusLabels:
+  Record<
+    ProductStatus,
+    string
+  > = {
+    draft: "Черновик",
+    published:
+      "Опубликован",
+    archived: "В архиве",
+  };
+```
+
+TypeScript проверяет:
+
+* наличие всех ключей;
+* отсутствие неизвестных ключей;
+* тип каждого значения.
+
+Если пропустить один статус, возникнет ошибка:
+
+```ts
+// Ошибка TypeScript:
+// const incompleteLabels:
+//   Record<
+//     ProductStatus,
+//     string
+//   > = {
+//     draft: "Черновик",
+//     published:
+//       "Опубликован",
+//   };
+```
+
+`Record` удобно использовать для:
+
+* словарей;
+* таблиц соответствий;
+* настроек;
+* обработчиков;
+* исчерпывающего описания всех вариантов union.
+
+---
+
+### 6. Чем `Extract<T, U>` отличается от `Exclude<T, U>`?
+
+`Exclude<T, U>` удаляет из объединения варианты, совместимые с `U`.
+
+```ts
+type Status =
+  | "draft"
+  | "published"
+  | "archived";
+
+type NotArchived =
+  Exclude<
+    Status,
+    "archived"
+  >;
+```
+
+Результат:
+
+```ts
+type NotArchived =
+  | "draft"
+  | "published";
+```
+
+`Extract<T, U>` оставляет только варианты, совместимые с `U`.
+
+```ts
+type FinalStatus =
+  Extract<
+    Status,
+    | "published"
+    | "archived"
+  >;
+```
+
+Результат:
+
+```ts
+type FinalStatus =
+  | "published"
+  | "archived";
+```
+
+Разница:
+
+* `Exclude` удаляет совпадающие варианты;
+* `Extract` сохраняет совпадающие варианты.
+
+---
+
+### 7. Что удаляет `NonNullable<T>`?
+
+`NonNullable<T>` удаляет из объединения:
+
+```ts
+null
+```
+
+и:
+
+```ts
+undefined
+```
+
+Пример:
+
+```ts
+type Product = {
+  id: number;
+  title: string;
+};
+
+type SearchResult =
+  | Product
+  | null
+  | undefined;
+```
+
+Применим `NonNullable`:
+
+```ts
+type ExistingProduct =
+  NonNullable<SearchResult>;
+```
+
+Результат:
+
+```ts
+type ExistingProduct =
+  Product;
+```
+
+Теперь `null` и `undefined` использовать нельзя:
+
+```ts
+const product:
+  ExistingProduct = {
+    id: 1,
+    title: "Клавиатура",
+  };
+```
+
+```ts
+// Ошибка TypeScript:
+// const missingProduct:
+//   ExistingProduct = null;
+```
+
+`NonNullable<T>` не делает свойства объекта обязательными.
+
+Он удаляет `null` и `undefined` только из самого переданного объединения.
+
+---
+
+### 8. Чем `Parameters<T>` отличается от `ReturnType<T>`?
+
+`Parameters<T>` получает типы параметров функции.
+
+Результатом является кортеж.
+
+```ts
+function createProduct(
+  title: string,
+  price: number,
+): {
+  id: number;
+  title: string;
+  price: number;
+} {
+  return {
+    id: 1,
+    title,
+    price,
+  };
+}
+```
+
+Получим параметры:
+
+```ts
+type CreateProductParameters =
+  Parameters<
+    typeof createProduct
+  >;
+```
+
+Результат:
+
+```ts
+type CreateProductParameters = [
+  title: string,
+  price: number,
+];
+```
+
+`ReturnType<T>` получает тип возвращаемого значения.
+
+```ts
+type CreatedProduct =
+  ReturnType<
+    typeof createProduct
+  >;
+```
+
+Результат:
+
+```ts
+type CreatedProduct = {
+  id: number;
+  title: string;
+  price: number;
+};
+```
+
+Основное отличие:
+
+* `Parameters<T>` получает входные параметры;
+* `ReturnType<T>` получает результат функции.
+
+---
+
+### 9. Для чего используются `ConstructorParameters<T>` и `InstanceType<T>`?
+
+`ConstructorParameters<T>` получает параметры конструктора класса.
+
+```ts
+class Product {
+  constructor(
+    public readonly id: number,
+    public title: string,
+  ) {}
+}
+```
+
+Получим параметры конструктора:
+
+```ts
+type ProductConstructorParameters =
+  ConstructorParameters<
+    typeof Product
+  >;
+```
+
+Результат:
+
+```ts
+type ProductConstructorParameters = [
+  id: number,
+  title: string,
+];
+```
+
+`InstanceType<T>` получает тип экземпляра, создаваемого конструктором.
+
+```ts
+type ProductInstance =
+  InstanceType<
+    typeof Product
+  >;
+```
+
+Результат:
+
+```ts
+type ProductInstance =
+  Product;
+```
+
+Важно различать:
+
+```ts
+typeof Product
+```
+
+Это тип конструктора класса.
+
+```ts
+Product
+```
+
+Это тип экземпляра класса.
+
+---
+
+### 10. Чем `ReturnType<T>` отличается от `Awaited<ReturnType<T>>`?
+
+Рассмотрим асинхронную функцию:
+
+```ts
+async function loadProducts():
+  Promise<string[]> {
+  return [
+    "Клавиатура",
+    "Мышь",
+  ];
+}
+```
+
+`ReturnType` получает полный возвращаемый тип функции:
+
+```ts
+type LoadProductsReturn =
+  ReturnType<
+    typeof loadProducts
+  >;
+```
+
+Результат:
+
+```ts
+type LoadProductsReturn =
+  Promise<string[]>;
+```
+
+`Awaited` извлекает значение из `Promise`:
+
+```ts
+type LoadedProducts =
+  Awaited<
+    ReturnType<
+      typeof loadProducts
+    >
+  >;
+```
+
+Результат:
+
+```ts
+type LoadedProducts =
+  string[];
+```
+
+Разница:
+
+* `ReturnType` сохраняет `Promise`;
+* `Awaited<ReturnType<...>>` получает тип значения после выполнения `Promise`.
 
 ---
 
 # Практическое задание
 
-## Задание 1. Модели данных
+## Задание 1. Модель товара
 
-### Тип `User`
+Сначала создадим типы статуса и категории.
 
 ```ts
-type User = {
-  id: number;
-  name: string;
-  email: string;
+type ProductStatus =
+  | "draft"
+  | "published"
+  | "archived";
+
+type ProductCategory =
+  | "electronics"
+  | "clothing"
+  | "books";
+```
+
+Теперь опишем модель товара:
+
+```ts
+type Product = {
+  readonly id: number;
+  title: string;
+  description: string;
+  price: number;
+  costPrice: number;
+  status: ProductStatus;
+  category: ProductCategory;
+  imageUrl?: string;
+  readonly createdAt: Date;
+};
+```
+
+Пример товара:
+
+```ts
+const keyboard: Product = {
+  id: 1,
+  title: "Клавиатура",
+  description:
+    "Механическая клавиатура",
+  price: 7500,
+  costPrice: 4800,
+  status: "published",
+  category: "electronics",
+  imageUrl:
+    "/images/keyboard.jpg",
+  createdAt: new Date(),
 };
 ```
 
 ---
 
-### Тип `OrderStatus`
+## Задание 2. Товар для списка
+
+Для списка нужны только отдельные свойства товара.
+
+Используем `Pick`:
 
 ```ts
-type OrderStatus =
-  | "new"
-  | "paid"
-  | "cancelled";
+type ProductListItem =
+  Pick<
+    Product,
+    | "id"
+    | "title"
+    | "price"
+    | "status"
+    | "imageUrl"
+  >;
 ```
 
----
-
-### Тип `Order`
+Получится тип:
 
 ```ts
-type Order = {
-  id: number;
-  userId: number;
-  amount: number;
-  status: OrderStatus;
+type ProductListItemEquivalent = {
+  readonly id: number;
+  title: string;
+  price: number;
+  status: ProductStatus;
+  imageUrl?: string;
 };
 ```
 
----
-
-### Тип `CreateOrderData`
-
-Для создания заказа идентификатор и статус готового заказа не нужны:
+Пример объекта:
 
 ```ts
-type CreateOrderData = {
-  userId: number;
-  amount: number;
-};
-```
-
-Можно также вычислить этот тип из `Order`:
-
-```ts
-type ComputedCreateOrderData =
-  Omit<Order, "id" | "status">;
-```
-
-Результат будет таким же:
-
-```ts
-{
-  userId: number;
-  amount: number;
-}
-```
-
----
-
-## Задание 2. Единая схема API
-
-Создадим схему, которая станет единственным источником информации о запросах и ответах.
-
-```ts
-type ApiSchema = {
-  users: {
-    get: {
-      request: {
-        limit?: number;
-      };
-      response: User[];
-    };
-
-    getById: {
-      request: {
-        id: number;
-      };
-      response: User;
-    };
-  };
-
-  order: {
-    create: {
-      request: CreateOrderData;
-      response: Order;
-    };
-
-    getById: {
-      request: {
-        id: number;
-      };
-      response: Order;
-    };
-  };
-};
-```
-
-В дальнейшем типы запросов, ответов, обработчиков и методов клиента будут вычисляться из `ApiSchema`.
-
----
-
-## Задание 3. Имена ресурсов и операций
-
-### Тип `ResourceName`
-
-Получим все ключи верхнего уровня схемы:
-
-```ts
-type ResourceName =
-  keyof ApiSchema;
-```
-
-Результат:
-
-```ts
-type ResourceName =
-  | "users"
-  | "order";
-```
-
-Проверка:
-
-```ts
-const usersResource:
-  ResourceName = "users";
-
-const orderResource:
-  ResourceName = "order";
-```
-
-Несуществующий ресурс использовать нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const productResource:
-//   ResourceName = "products";
-```
-
----
-
-### Тип `OperationName`
-
-Теперь получим операции конкретного ресурса:
-
-```ts
-type OperationName<
-  TResource extends ResourceName,
-> =
-  keyof ApiSchema[TResource];
-```
-
-Примеры:
-
-```ts
-type UserOperation =
-  OperationName<"users">;
-
-type OrderOperation =
-  OperationName<"order">;
-```
-
-Результаты:
-
-```ts
-// UserOperation:
-// "get" | "getById"
-
-// OrderOperation:
-// "create" | "getById"
-```
-
-Проверка:
-
-```ts
-const userOperation:
-  UserOperation = "get";
-
-const orderOperation:
-  OrderOperation = "create";
-```
-
-Неподходящая операция вызовет ошибку:
-
-```ts
-// Ошибка TypeScript:
-// const wrongUserOperation:
-//   UserOperation = "create";
-```
-
----
-
-## Задание 4. Типы endpoint
-
-Нужно получить объединение строк следующего вида:
-
-```text
-users:get
-users:getById
-order:create
-order:getById
-```
-
-Создадим mapped type:
-
-```ts
-type EndpointName = {
-  [TResource in ResourceName]:
-    `${TResource}:${
-      Extract<
-        OperationName<TResource>,
-        string
-      >
-    }`;
-}[ResourceName];
-```
-
-Разберём его по частям.
-
-Mapped type проходит по каждому ресурсу:
-
-```ts
-[TResource in ResourceName]
-```
-
-Для каждого ресурса строится строковый тип:
-
-```ts
-`${TResource}:${OperationName}`
-```
-
-Затем:
-
-```ts
-[ResourceName]
-```
-
-получает объединение всех значений созданного объекта.
-
-Результат:
-
-```ts
-type EndpointName =
-  | "users:get"
-  | "users:getById"
-  | "order:create"
-  | "order:getById";
-```
-
-Проверка:
-
-```ts
-const getUsersEndpoint:
-  EndpointName = "users:get";
-
-const createOrderEndpoint:
-  EndpointName = "order:create";
-```
-
-Несуществующий endpoint использовать нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const wrongEndpoint:
-//   EndpointName = "users:create";
-```
-
----
-
-## Задание 5. Параметры запроса и тип ответа
-
-Сначала создадим вспомогательный тип, который по имени endpoint получает соответствующее описание операции.
-
-### Тип `EndpointDefinition`
-
-```ts
-type EndpointDefinition<
-  TEndpoint extends EndpointName,
-> =
-  TEndpoint extends
-    `${infer TResource}:${infer TOperation}`
-      ? TResource extends ResourceName
-        ? TOperation extends
-            keyof ApiSchema[TResource]
-          ? ApiSchema[TResource][TOperation]
-          : never
-        : never
-      : never;
-```
-
-Рассмотрим endpoint:
-
-```ts
-"order:create"
-```
-
-Template literal type разделяет его на две части:
-
-```ts
-TResource = "order"
-TOperation = "create"
-```
-
-После этого TypeScript получает:
-
-```ts
-ApiSchema["order"]["create"]
-```
-
-Результат:
-
-```ts
-{
-  request: CreateOrderData;
-  response: Order;
-}
-```
-
----
-
-### Тип `RequestOf`
-
-```ts
-type RequestOf<
-  TEndpoint extends EndpointName,
-> =
-  EndpointDefinition<TEndpoint>
-    extends {
-      request: infer TRequest;
-    }
-      ? TRequest
-      : never;
-```
-
-Примеры:
-
-```ts
-type GetUsersRequest =
-  RequestOf<"users:get">;
-
-type CreateOrderRequest =
-  RequestOf<"order:create">;
-```
-
-Результаты:
-
-```ts
-// GetUsersRequest:
-{
-  limit?: number;
-}
-```
-
-```ts
-// CreateOrderRequest:
-{
-  userId: number;
-  amount: number;
-}
-```
-
----
-
-### Тип `ResponseOf`
-
-```ts
-type ResponseOf<
-  TEndpoint extends EndpointName,
-> =
-  EndpointDefinition<TEndpoint>
-    extends {
-      response: infer TResponse;
-    }
-      ? TResponse
-      : never;
-```
-
-Примеры:
-
-```ts
-type GetUsersResponse =
-  ResponseOf<"users:get">;
-
-type CreateOrderResponse =
-  ResponseOf<"order:create">;
-```
-
-Результаты:
-
-```ts
-// GetUsersResponse:
-User[]
-```
-
-```ts
-// CreateOrderResponse:
-Order
-```
-
----
-
-### Проверка типов запросов
-
-```ts
-const getUsersRequest:
-  GetUsersRequest = {
-    limit: 10,
+const productListItem:
+  ProductListItem = {
+    id: 1,
+    title: "Клавиатура",
+    price: 7500,
+    status: "published",
+    imageUrl:
+      "/images/keyboard.jpg",
   };
 ```
 
-Параметр `limit` можно не передавать:
+Свойства `description`, `costPrice`, `category` и `createdAt` в этом типе отсутствуют.
+
+---
+
+## Задание 3. Публичная модель товара
+
+В публичной модели нужно удалить внутреннюю себестоимость.
+
+Используем `Omit`:
 
 ```ts
-const getAllUsersRequest:
-  GetUsersRequest = {};
+type PublicProduct =
+  Omit<
+    Product,
+    "costPrice"
+  >;
 ```
 
-Создание заказа:
+Пример объекта:
 
 ```ts
-const createOrderRequest:
-  CreateOrderRequest = {
-    userId: 1,
-    amount: 5000,
+const publicProduct:
+  PublicProduct = {
+    id: 1,
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    status: "published",
+    category: "electronics",
+    imageUrl:
+      "/images/keyboard.jpg",
+    createdAt: new Date(),
   };
 ```
 
-Неправильный тип вызовет ошибку:
+Передать `costPrice` нельзя:
 
 ```ts
 // Ошибка TypeScript:
-// const wrongRequest:
-//   CreateOrderRequest = {
-//     userId: "1",
-//     amount: 5000,
+// const wrongPublicProduct:
+//   PublicProduct = {
+//     id: 1,
+//     title: "Клавиатура",
+//     description:
+//       "Механическая клавиатура",
+//     price: 7500,
+//     costPrice: 4800,
+//     status: "published",
+//     category: "electronics",
+//     createdAt: new Date(),
 //   };
 ```
 
-Несуществующий endpoint передать нельзя благодаря ограничению:
+---
+
+## Задание 4. Команда добавления товара
+
+При создании товара клиент не передаёт:
+
+* `id`;
+* `createdAt`;
+* `status`.
+
+Удалим эти свойства:
 
 ```ts
-TEndpoint extends EndpointName
+type CreateProductCommand =
+  Omit<
+    Product,
+    | "id"
+    | "createdAt"
+    | "status"
+  >;
+```
+
+Пример команды:
+
+```ts
+const createProductCommand:
+  CreateProductCommand = {
+    title: "Мышь",
+    description:
+      "Беспроводная мышь",
+    price: 3200,
+    costPrice: 1900,
+    category: "electronics",
+    imageUrl:
+      "/images/mouse.jpg",
+  };
+```
+
+Следующая команда вызовет ошибку, потому что `id` отсутствует в `CreateProductCommand`:
+
+```ts
+// Ошибка TypeScript:
+// const wrongCreateCommand:
+//   CreateProductCommand = {
+//     id: 2,
+//     title: "Мышь",
+//     description:
+//       "Беспроводная мышь",
+//     price: 3200,
+//     costPrice: 1900,
+//     category: "electronics",
+//   };
+```
+
+---
+
+## Задание 5. Команда обновления товара
+
+Сначала выберем разрешённые для изменения свойства:
+
+```ts
+type EditableProductFields =
+  Pick<
+    Product,
+    | "title"
+    | "description"
+    | "price"
+    | "category"
+    | "imageUrl"
+  >;
+```
+
+Теперь сделаем их необязательными:
+
+```ts
+type ProductUpdatePatch =
+  Partial<
+    EditableProductFields
+  >;
+```
+
+Добавим обязательный идентификатор товара:
+
+```ts
+type UpdateProductCommand = {
+  productId: Product["id"];
+} & ProductUpdatePatch;
+```
+
+Пример изменения названия:
+
+```ts
+const updateTitle:
+  UpdateProductCommand = {
+    productId: 1,
+    title:
+      "Игровая клавиатура",
+  };
+```
+
+Пример изменения цены:
+
+```ts
+const updatePrice:
+  UpdateProductCommand = {
+    productId: 1,
+    price: 6900,
+  };
+```
+
+Пример изменения нескольких полей:
+
+```ts
+const updateSeveralFields:
+  UpdateProductCommand = {
+    productId: 1,
+    title:
+      "Компактная клавиатура",
+    description:
+      "Механическая клавиатура без цифрового блока",
+    price: 7100,
+    category: "electronics",
+    imageUrl:
+      "/images/compact-keyboard.jpg",
+  };
+```
+
+Попытка изменить `costPrice` вызовет ошибку:
+
+```ts
+// Ошибка TypeScript:
+// const wrongCostPriceUpdate:
+//   UpdateProductCommand = {
+//     productId: 1,
+//     costPrice: 3000,
+//   };
+```
+
+Изменить статус тоже нельзя:
+
+```ts
+// Ошибка TypeScript:
+// const wrongStatusUpdate:
+//   UpdateProductCommand = {
+//     productId: 1,
+//     status: "archived",
+//   };
+```
+
+---
+
+## Задание 6. Полностью заполненная модель
+
+Применим `Required`:
+
+```ts
+type CompleteProduct =
+  Required<Product>;
+```
+
+Теперь `imageUrl` является обязательным свойством:
+
+```ts
+const completeProduct:
+  CompleteProduct = {
+    id: 1,
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    costPrice: 4800,
+    status: "published",
+    category: "electronics",
+    imageUrl:
+      "/images/keyboard.jpg",
+    createdAt: new Date(),
+  };
+```
+
+Пропустить `imageUrl` нельзя:
+
+```ts
+// Ошибка TypeScript:
+// const incompleteProduct:
+//   CompleteProduct = {
+//     id: 1,
+//     title: "Клавиатура",
+//     description:
+//       "Механическая клавиатура",
+//     price: 7500,
+//     costPrice: 4800,
+//     status: "published",
+//     category: "electronics",
+//     createdAt: new Date(),
+//   };
+```
+
+Рассмотрим отдельный пример:
+
+```ts
+type ProductWithUndefinedImage = {
+  imageUrl?:
+    string | undefined;
+};
+```
+
+Применим `Required`:
+
+```ts
+type CompleteImage =
+  Required<
+    ProductWithUndefinedImage
+  >;
+```
+
+Свойство становится обязательным:
+
+```ts
+const image:
+  CompleteImage = {
+    imageUrl: undefined,
+  };
+```
+
+Это допустимо, потому что `Required` убирает только знак `?`.
+
+Явно указанный `undefined` остаётся частью типа значения.
+
+---
+
+## Задание 7. Модель только для чтения
+
+Используем `Readonly`:
+
+```ts
+type ProductSnapshot =
+  Readonly<Product>;
+```
+
+Создадим снимок товара:
+
+```ts
+const productSnapshot:
+  ProductSnapshot = {
+    id: 1,
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    costPrice: 4800,
+    status: "published",
+    category: "electronics",
+    imageUrl:
+      "/images/keyboard.jpg",
+    createdAt: new Date(),
+  };
+```
+
+Изменять свойства нельзя:
+
+```ts
+// Ошибка TypeScript:
+// productSnapshot.title =
+//   "Новая клавиатура";
 ```
 
 ```ts
 // Ошибка TypeScript:
-// type WrongResponse =
-//   ResponseOf<"products:get">;
+// productSnapshot.price =
+//   8000;
+```
+
+```ts
+// Ошибка TypeScript:
+// productSnapshot.status =
+//   "archived";
+```
+
+Важно помнить, что `Readonly` работает только на верхнем уровне объекта.
+
+---
+
+## Задание 8. Подписи для статусов
+
+Тип статуса можно получить непосредственно из `Product`:
+
+```ts
+type ProductStatusFromModel =
+  Product["status"];
+```
+
+Он эквивалентен:
+
+```ts
+type ProductStatusFromModel =
+  | "draft"
+  | "published"
+  | "archived";
+```
+
+Создадим карту подписей:
+
+```ts
+const productStatusLabels:
+  Record<
+    ProductStatusFromModel,
+    string
+  > = {
+    draft: "Черновик",
+    published:
+      "Опубликован",
+    archived: "В архиве",
+  };
+```
+
+Если пропустить ключ, TypeScript покажет ошибку:
+
+```ts
+// Ошибка TypeScript:
+// const incompleteStatusLabels:
+//   Record<
+//     ProductStatusFromModel,
+//     string
+//   > = {
+//     draft: "Черновик",
+//     published:
+//       "Опубликован",
+//   };
+```
+
+Неизвестный ключ тоже запрещён:
+
+```ts
+// Ошибка TypeScript:
+// const wrongStatusLabels:
+//   Record<
+//     ProductStatusFromModel,
+//     string
+//   > = {
+//     draft: "Черновик",
+//     published:
+//       "Опубликован",
+//     archived: "В архиве",
+//     deleted: "Удалён",
+//   };
 ```
 
 ---
 
-## Задание 6. Обработчик endpoint
+## Задание 9. Настройки отображения категорий
 
-Создадим универсальный тип обработчика:
+Получим тип категории:
 
 ```ts
-type EndpointHandler<
-  TEndpoint extends EndpointName,
-> = (
-  request: RequestOf<TEndpoint>,
-) =>
-  | ResponseOf<TEndpoint>
-  | Promise<ResponseOf<TEndpoint>>;
+type ProductCategoryFromModel =
+  Product["category"];
 ```
 
-Обработчик может вернуть:
-
-* обычный результат;
-* `Promise` с результатом.
-
----
-
-### Обработчик получения пользователей
+Опишем значение настройки:
 
 ```ts
-type GetUsersHandler =
-  EndpointHandler<"users:get">;
+type CategorySetting = {
+  title: string;
+  icon: string;
+};
 ```
 
-Он эквивалентен следующему типу:
+Теперь создадим словарь:
 
 ```ts
-type GetUsersHandlerEquivalent = (
-  request: {
-    limit?: number;
-  },
-) => User[] | Promise<User[]>;
+type CategorySettings =
+  Record<
+    ProductCategoryFromModel,
+    CategorySetting
+  >;
 ```
 
 Реализация:
 
 ```ts
-const getUsersHandler:
-  GetUsersHandler = (
-    request,
-  ) => {
-    const users: User[] = [
-      {
-        id: 1,
-        name: "Анна",
-        email: "anna@example.com",
-      },
-      {
-        id: 2,
-        name: "Борис",
-        email: "boris@example.com",
-      },
-    ];
-
-    if (
-      request.limit === undefined
-    ) {
-      return users;
-    }
-
-    return users.slice(
-      0,
-      request.limit,
-    );
+const categorySettings:
+  CategorySettings = {
+    electronics: {
+      title: "Электроника",
+      icon: "monitor",
+    },
+    clothing: {
+      title: "Одежда",
+      icon: "shirt",
+    },
+    books: {
+      title: "Книги",
+      icon: "book",
+    },
   };
 ```
 
----
-
-### Обработчик создания заказа
-
-```ts
-type CreateOrderHandler =
-  EndpointHandler<"order:create">;
-```
-
-Реализация:
-
-```ts
-const createOrderHandler:
-  CreateOrderHandler = async (
-    request,
-  ) => {
-    return {
-      id: 101,
-      userId: request.userId,
-      amount: request.amount,
-      status: "new",
-    };
-  };
-```
-
-TypeScript знает, что `request` имеет тип:
-
-```ts
-CreateOrderData
-```
-
-Возвращаемое значение должно соответствовать типу `Order`.
+TypeScript требует настройку для каждой категории.
 
 ---
 
-## Задание 7. Карта обработчиков
+## Задание 10. Статусы через `Exclude` и `Extract`
 
-Создадим mapped type:
-
-```ts
-type ApiHandlers = {
-  [TEndpoint in EndpointName]:
-    EndpointHandler<TEndpoint>;
-};
-```
-
-Результат будет эквивалентен следующему:
+Удалим статус `"archived"`:
 
 ```ts
-type ApiHandlersEquivalent = {
-  "users:get":
-    EndpointHandler<"users:get">;
-
-  "users:getById":
-    EndpointHandler<"users:getById">;
-
-  "order:create":
-    EndpointHandler<"order:create">;
-
-  "order:getById":
-    EndpointHandler<"order:getById">;
-};
-```
-
-Теперь создадим объект обработчиков:
-
-```ts
-const handlers: ApiHandlers = {
-  "users:get": (
-    request,
-  ) => {
-    const users: User[] = [
-      {
-        id: 1,
-        name: "Анна",
-        email: "anna@example.com",
-      },
-      {
-        id: 2,
-        name: "Борис",
-        email: "boris@example.com",
-      },
-    ];
-
-    if (
-      request.limit === undefined
-    ) {
-      return users;
-    }
-
-    return users.slice(
-      0,
-      request.limit,
-    );
-  },
-
-  "users:getById": (
-    request,
-  ) => {
-    return {
-      id: request.id,
-      name: "Анна",
-      email: "anna@example.com",
-    };
-  },
-
-  "order:create": async (
-    request,
-  ) => {
-    return {
-      id: 101,
-      userId: request.userId,
-      amount: request.amount,
-      status: "new",
-    };
-  },
-
-  "order:getById": (
-    request,
-  ) => {
-    return {
-      id: request.id,
-      userId: 1,
-      amount: 5000,
-      status: "paid",
-    };
-  },
-};
-```
-
-TypeScript проверяет:
-
-* наличие всех обязательных endpoint;
-* параметры каждого обработчика;
-* возвращаемые значения;
-* отсутствие неизвестных ключей.
-
-Если удалить обработчик, возникнет ошибка:
-
-```ts
-// Ошибка TypeScript:
-// отсутствует обязательный endpoint
-// "order:getById"
-```
-
-Если вернуть неправильный результат:
-
-```ts
-// Ошибка TypeScript:
-// "order:create": () => {
-//   return "Заказ создан";
-// },
-```
-
-Строка не соответствует типу `Order`.
-
----
-
-## Задание 8. Имена методов API-клиента
-
-Нужно преобразовать endpoint:
-
-```text
-users:get
-```
-
-в имя:
-
-```text
-getUsers
-```
-
-А:
-
-```text
-order:create
-```
-
-в:
-
-```text
-createOrder
-```
-
-Сначала создадим тип преобразования имени ресурса.
-
-```ts
-type SingularResourceName<
-  TResource extends string,
-> =
-  TResource extends "users"
-    ? "Users"
-    : Capitalize<TResource>;
-```
-
-Для текущей схемы:
-
-```ts
-// SingularResourceName<"users">
-// "Users"
-
-// SingularResourceName<"order">
-// "Order"
-```
-
-Теперь создадим имя метода на основе endpoint:
-
-```ts
-type MethodNameOf<
-  TEndpoint extends EndpointName,
-> =
-  TEndpoint extends
-    `${infer TResource}:${infer TOperation}`
-      ? TResource extends ResourceName
-        ? TOperation extends string
-          ? `${
-              TOperation
-            }${
-              SingularResourceName<
-                TResource
-              >
-            }`
-          : never
-        : never
-      : never;
-```
-
-Получим все имена методов:
-
-```ts
-type ClientMethodName =
-  MethodNameOf<EndpointName>;
+type VisibleProductStatus =
+  Exclude<
+    ProductStatus,
+    "archived"
+  >;
 ```
 
 Результат:
 
 ```ts
-type ClientMethodName =
-  | "getUsers"
-  | "getByIdUsers"
-  | "createOrder"
-  | "getByIdOrder";
+type VisibleProductStatus =
+  | "draft"
+  | "published";
 ```
 
 Проверка:
 
 ```ts
-const clientMethod:
-  ClientMethodName =
-    "createOrder";
+const draftStatus:
+  VisibleProductStatus =
+    "draft";
+
+const publishedStatus:
+  VisibleProductStatus =
+    "published";
 ```
 
-Несуществующее имя вызовет ошибку:
+Архивный статус использовать нельзя:
 
 ```ts
 // Ошибка TypeScript:
-// const wrongMethod:
-//   ClientMethodName =
-//     "deleteOrder";
+// const archivedVisibleStatus:
+//   VisibleProductStatus =
+//     "archived";
 ```
 
----
-
-## Задание 9. Тип API-клиента
-
-Нужно создать объект, в котором ключи endpoint будут переименованы в имена методов.
+Теперь оставим только финальные статусы:
 
 ```ts
-type ApiClient = {
-  [TEndpoint in EndpointName as
-    MethodNameOf<TEndpoint>
-  ]: (
-    request:
-      RequestOf<TEndpoint>,
-  ) => Promise<
-    ResponseOf<TEndpoint>
+type FinalProductStatus =
+  Extract<
+    ProductStatus,
+    | "published"
+    | "archived"
   >;
-};
 ```
 
-Mapped type проходит по каждому endpoint:
+Результат:
 
 ```ts
-TEndpoint in EndpointName
+type FinalProductStatus =
+  | "published"
+  | "archived";
 ```
 
-С помощью `as` ключ переименовывается:
+Проверка:
 
 ```ts
-as MethodNameOf<TEndpoint>
+const finalPublished:
+  FinalProductStatus =
+    "published";
+
+const finalArchived:
+  FinalProductStatus =
+    "archived";
 ```
 
-Тип параметра вычисляется через:
+`"draft"` не входит в этот тип:
 
 ```ts
-RequestOf<TEndpoint>
+// Ошибка TypeScript:
+// const wrongFinalStatus:
+//   FinalProductStatus =
+//     "draft";
 ```
-
-Тип результата вычисляется через:
-
-```ts
-ResponseOf<TEndpoint>
-```
-
-Тип `ApiClient` будет эквивалентен следующему:
-
-```ts
-type ApiClientEquivalent = {
-  getUsers(
-    request: {
-      limit?: number;
-    },
-  ): Promise<User[]>;
-
-  getByIdUsers(
-    request: {
-      id: number;
-    },
-  ): Promise<User>;
-
-  createOrder(
-    request: CreateOrderData,
-  ): Promise<Order>;
-
-  getByIdOrder(
-    request: {
-      id: number;
-    },
-  ): Promise<Order>;
-};
-```
-
-Все методы были вычислены из `ApiSchema`.
 
 ---
 
-## Задание 10. Реализация API-клиента
+## Задание 11. Команда публикации товара
 
-Создадим объект клиента:
+Тип идентификатора получаем из модели:
 
 ```ts
-const apiClient: ApiClient = {
-  async getUsers(request) {
-    const users: User[] = [
-      {
-        id: 1,
-        name: "Анна",
-        email: "anna@example.com",
-      },
-      {
-        id: 2,
-        name: "Борис",
-        email: "boris@example.com",
-      },
-      {
-        id: 3,
-        name: "Виктор",
-        email: "viktor@example.com",
-      },
-    ];
+type ProductId =
+  Product["id"];
+```
 
-    if (
-      request.limit === undefined
-    ) {
-      return users;
-    }
+Из статусов удаляем `"draft"`:
 
-    return users.slice(
-      0,
-      request.limit,
+```ts
+type PublishableStatus =
+  Exclude<
+    Product["status"],
+    "draft"
+  >;
+```
+
+Создаём команду:
+
+```ts
+type PublishProductCommand = {
+  productId: ProductId;
+  status: PublishableStatus;
+};
+```
+
+Правильная команда:
+
+```ts
+const publishCommand:
+  PublishProductCommand = {
+    productId: 1,
+    status: "published",
+  };
+```
+
+Архивирование тоже допустимо:
+
+```ts
+const archiveCommand:
+  PublishProductCommand = {
+    productId: 1,
+    status: "archived",
+  };
+```
+
+Вернуть товар в статус черновика нельзя:
+
+```ts
+// Ошибка TypeScript:
+// const draftCommand:
+//   PublishProductCommand = {
+//     productId: 1,
+//     status: "draft",
+//   };
+```
+
+---
+
+## Задание 12. Удаление `null` и `undefined`
+
+Исходный результат поиска:
+
+```ts
+type ProductSearchResult =
+  | Product
+  | null
+  | undefined;
+```
+
+Удалим пустые значения:
+
+```ts
+type ExistingProduct =
+  NonNullable<
+    ProductSearchResult
+  >;
+```
+
+Результат:
+
+```ts
+type ExistingProduct =
+  Product;
+```
+
+Правильное значение:
+
+```ts
+const existingProduct:
+  ExistingProduct = {
+    id: 1,
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    costPrice: 4800,
+    status: "published",
+    category: "electronics",
+    createdAt: new Date(),
+  };
+```
+
+`null` использовать нельзя:
+
+```ts
+// Ошибка TypeScript:
+// const nullProduct:
+//   ExistingProduct = null;
+```
+
+`undefined` тоже запрещён:
+
+```ts
+// Ошибка TypeScript:
+// const undefinedProduct:
+//   ExistingProduct =
+//     undefined;
+```
+
+---
+
+## Задание 13. Типы функции создания товара
+
+Создадим функцию:
+
+```ts
+function createProduct(
+  command: CreateProductCommand,
+): Product {
+  return {
+    id: Date.now(),
+    title: command.title,
+    description:
+      command.description,
+    price: command.price,
+    costPrice:
+      command.costPrice,
+    status: "draft",
+    category:
+      command.category,
+    imageUrl:
+      command.imageUrl,
+    createdAt: new Date(),
+  };
+}
+```
+
+Получим параметры функции:
+
+```ts
+type CreateProductParameters =
+  Parameters<
+    typeof createProduct
+  >;
+```
+
+Результат является кортежем:
+
+```ts
+type CreateProductParametersEquivalent = [
+  command:
+    CreateProductCommand,
+];
+```
+
+Создадим значение этого типа:
+
+```ts
+const createArguments:
+  CreateProductParameters = [
+    {
+      title: "Мышь",
+      description:
+        "Беспроводная мышь",
+      price: 3200,
+      costPrice: 1900,
+      category:
+        "electronics",
+    },
+  ];
+```
+
+Теперь получим возвращаемый тип:
+
+```ts
+type CreatedProduct =
+  ReturnType<
+    typeof createProduct
+  >;
+```
+
+Он эквивалентен `Product`.
+
+```ts
+const createdProduct:
+  CreatedProduct =
+    createProduct(
+      createArguments[0],
     );
-  },
-
-  async getByIdUsers(request) {
-    return {
-      id: request.id,
-      name: "Анна",
-      email: "anna@example.com",
-    };
-  },
-
-  async createOrder(request) {
-    return {
-      id: 101,
-      userId: request.userId,
-      amount: request.amount,
-      status: "new",
-    };
-  },
-
-  async getByIdOrder(request) {
-    return {
-      id: request.id,
-      userId: 1,
-      amount: 5000,
-      status: "paid",
-    };
-  },
-};
 ```
 
 ---
 
-### Получение пользователей
+## Задание 14. Функция-обёртка
+
+Создадим универсальную функцию:
 
 ```ts
-async function runUsersExample():
-  Promise<void> {
-  const users =
-    await apiClient.getUsers({
-      limit: 2,
-    });
+function withLogging<
+  TArguments extends unknown[],
+  TResult,
+>(
+  fn: (
+    ...args: TArguments
+  ) => TResult,
+): (
+  ...args: TArguments
+) => TResult {
+  return (
+    ...args: TArguments
+  ): TResult => {
+    console.log(
+      "Аргументы:",
+      args,
+    );
 
-  console.log(users);
+    const result =
+      fn(...args);
+
+    console.log(
+      "Результат:",
+      result,
+    );
+
+    return result;
+  };
 }
 ```
 
-Тип переменной `users`:
+Применим её к `createProduct`:
 
 ```ts
-User[]
+const loggedCreateProduct =
+  withLogging(createProduct);
+```
+
+Вызов:
+
+```ts
+const loggedProduct =
+  loggedCreateProduct({
+    title: "Монитор",
+    description:
+      "Монитор с диагональю 27 дюймов",
+    price: 28000,
+    costPrice: 21000,
+    category: "electronics",
+  });
+```
+
+Тип `loggedProduct`:
+
+```ts
+Product
+```
+
+TypeScript сохраняет сигнатуру исходной функции.
+
+Неправильная команда вызовет ошибку:
+
+```ts
+// Ошибка TypeScript:
+// loggedCreateProduct({
+//   title: "Монитор",
+//   price: "28000",
+// });
 ```
 
 ---
 
-### Получение пользователя по идентификатору
+## Задание 15. Типы конструктора
+
+Создадим класс:
 
 ```ts
-async function runUserExample():
-  Promise<void> {
-  const user =
-    await apiClient.getByIdUsers({
+class ProductEntity {
+  constructor(
+    public readonly id: number,
+    public title: string,
+    public price: number,
+    public status:
+      ProductStatus,
+  ) {}
+}
+```
+
+Получим параметры конструктора:
+
+```ts
+type ProductEntityConstructorParameters =
+  ConstructorParameters<
+    typeof ProductEntity
+  >;
+```
+
+Результат:
+
+```ts
+type ProductEntityConstructorParametersEquivalent = [
+  id: number,
+  title: string,
+  price: number,
+  status: ProductStatus,
+];
+```
+
+Создадим переменную с аргументами:
+
+```ts
+const productEntityArguments:
+  ProductEntityConstructorParameters = [
+    1,
+    "Клавиатура",
+    7500,
+    "published",
+  ];
+```
+
+Получим тип экземпляра:
+
+```ts
+type ProductEntityInstance =
+  InstanceType<
+    typeof ProductEntity
+  >;
+```
+
+Создадим экземпляр:
+
+```ts
+const productEntity:
+  ProductEntityInstance =
+    new ProductEntity(
+      ...productEntityArguments,
+    );
+```
+
+Тип `ProductEntityInstance` эквивалентен `ProductEntity`.
+
+---
+
+## Задание 16. Результат асинхронной функции
+
+Создадим функцию загрузки товаров:
+
+```ts
+async function loadProducts():
+  Promise<Product[]> {
+  return [
+    {
       id: 1,
-    });
-
-  console.log(user.name);
+      title: "Клавиатура",
+      description:
+        "Механическая клавиатура",
+      price: 7500,
+      costPrice: 4800,
+      status: "published",
+      category:
+        "electronics",
+      createdAt: new Date(),
+    },
+    {
+      id: 2,
+      title: "Книга",
+      description:
+        "Учебник по TypeScript",
+      price: 1800,
+      costPrice: 900,
+      status: "published",
+      category: "books",
+      createdAt: new Date(),
+    },
+  ];
 }
 ```
 
-Тип переменной `user`:
+Получим полный возвращаемый тип:
 
 ```ts
-User
+type LoadProductsReturn =
+  ReturnType<
+    typeof loadProducts
+  >;
 ```
 
----
-
-### Создание заказа
+Результат:
 
 ```ts
-async function runOrderExample():
+type LoadProductsReturn =
+  Promise<Product[]>;
+```
+
+Теперь извлечём внутреннее значение:
+
+```ts
+type LoadedProducts =
+  Awaited<
+    ReturnType<
+      typeof loadProducts
+    >
+  >;
+```
+
+Результат:
+
+```ts
+type LoadedProducts =
+  Product[];
+```
+
+Проверка:
+
+```ts
+async function runLoadExample():
   Promise<void> {
-  const order =
-    await apiClient.createOrder({
-      userId: 1,
-      amount: 5000,
-    });
+  const products:
+    LoadedProducts =
+      await loadProducts();
 
-  console.log(order.status);
+  console.log(products);
 }
 ```
 
-Тип переменной `order`:
-
-```ts
-Order
-```
-
 ---
 
-### Проверка ошибок
+## Задание 17. Состояние каталога
 
-Нельзя пропустить обязательный параметр:
-
-```ts
-// Ошибка TypeScript:
-// apiClient.getByIdUsers({});
-```
-
-Нельзя передать неправильный тип:
+Опишем состояние:
 
 ```ts
-// Ошибка TypeScript:
-// apiClient.getByIdUsers({
-//   id: "1",
-// });
-```
-
-Нельзя добавить неизвестное свойство:
-
-```ts
-// Ошибка TypeScript:
-// apiClient.createOrder({
-//   userId: 1,
-//   amount: 5000,
-//   discount: 10,
-// });
-```
-
-Нельзя вызвать несуществующий метод:
-
-```ts
-// Ошибка TypeScript:
-// apiClient.deleteOrder({
-//   id: 1,
-// });
-```
-
-Нельзя вернуть результат неправильного типа:
-
-```ts
-// Ошибка TypeScript:
-// const wrongClient: ApiClient = {
-//   ...
-//
-//   async createOrder() {
-//     return "Заказ создан";
-//   },
-// };
-```
-
----
-
-## Задание 11. Добавление нового endpoint
-
-Добавим операцию получения всех заказов:
-
-```ts
-type ExtendedApiSchema = {
-  users: {
-    get: {
-      request: {
-        limit?: number;
-      };
-      response: User[];
-    };
-
-    getById: {
-      request: {
-        id: number;
-      };
-      response: User;
-    };
-  };
-
-  order: {
-    create: {
-      request: CreateOrderData;
-      response: Order;
-    };
-
-    getById: {
-      request: {
-        id: number;
-      };
-      response: Order;
-    };
-
-    getAll: {
-      request: {
-        userId?: number;
-      };
-      response: Order[];
-    };
-  };
+type CatalogState = {
+  products: Product[];
+  selectedProduct:
+    Product | null;
+  loading: boolean;
+  error: string | null;
 };
 ```
 
-Чтобы все вычисляемые типы обновились, достаточно использовать новую схему как основную:
+Создадим тип частичного обновления:
 
 ```ts
-type ApiSchema =
-  ExtendedApiSchema;
+type CatalogStatePatch =
+  Partial<CatalogState>;
 ```
 
-После этого тип endpoint автоматически получит новое значение:
+Теперь реализуем функцию:
 
 ```ts
-"order:getAll"
-```
-
-Имя метода клиента:
-
-```ts
-getAllOrder
-```
-
-Тип запроса:
-
-```ts
-{
-  userId?: number;
+function updateCatalogState(
+  current: CatalogState,
+  patch: CatalogStatePatch,
+): CatalogState {
+  return {
+    ...current,
+    ...patch,
+  };
 }
 ```
 
-Тип ответа:
+Исходное состояние:
 
 ```ts
-Order[]
+const initialCatalogState:
+  CatalogState = {
+    products: [],
+    selectedProduct: null,
+    loading: false,
+    error: null,
+  };
 ```
 
-Карта обработчиков потребует новый обработчик:
+Начало загрузки:
 
 ```ts
-"order:getAll"
+const loadingCatalogState =
+  updateCatalogState(
+    initialCatalogState,
+    {
+      loading: true,
+    },
+  );
 ```
 
-А `ApiClient` потребует новый метод:
+Завершение загрузки:
 
 ```ts
-getAllOrder
+const loadedCatalogState =
+  updateCatalogState(
+    loadingCatalogState,
+    {
+      products: [
+        keyboard,
+      ],
+      loading: false,
+    },
+  );
 ```
 
-Другие вычисляемые типы вручную менять не потребуется.
+Выбор товара:
+
+```ts
+const selectedCatalogState =
+  updateCatalogState(
+    loadedCatalogState,
+    {
+      selectedProduct:
+        keyboard,
+    },
+  );
+```
+
+Функция не изменяет исходный объект.
+
+Она возвращает новый объект состояния.
+
+---
+
+## Задание 18. Добавление нового статуса
+
+Расширим тип:
+
+```ts
+type ExtendedProductStatus =
+  | "draft"
+  | "published"
+  | "archived"
+  | "outOfStock";
+```
+
+Если заменить исходный `ProductStatus` на этот тип, автоматически обновятся:
+
+```ts
+Product["status"]
+```
+
+```ts
+VisibleProductStatus
+```
+
+```ts
+PublishableStatus
+```
+
+```ts
+FinalProductStatus
+```
+
+```ts
+PublishProductCommand
+```
+
+Объект, объявленный через `Record`, потребует новое значение:
+
+```ts
+const extendedStatusLabels:
+  Record<
+    ExtendedProductStatus,
+    string
+  > = {
+    draft: "Черновик",
+    published:
+      "Опубликован",
+    archived: "В архиве",
+    outOfStock:
+      "Нет в наличии",
+  };
+```
+
+Если не добавить `outOfStock`, TypeScript покажет ошибку.
+
+Это демонстрирует преимущество `Record`.
+
+При расширении union компилятор помогает найти все исчерпывающие таблицы, которые необходимо обновить.
 
 ---
 
@@ -1567,379 +1857,524 @@ getAllOrder
 ```ts
 export {};
 
-type User = {
-  id: number;
-  name: string;
-  email: string;
+type ProductStatus =
+  | "draft"
+  | "published"
+  | "archived";
+
+type ProductCategory =
+  | "electronics"
+  | "clothing"
+  | "books";
+
+type Product = {
+  readonly id: number;
+  title: string;
+  description: string;
+  price: number;
+  costPrice: number;
+  status: ProductStatus;
+  category: ProductCategory;
+  imageUrl?: string;
+  readonly createdAt: Date;
 };
 
-type OrderStatus =
-  | "new"
-  | "paid"
-  | "cancelled";
-
-type Order = {
-  id: number;
-  userId: number;
-  amount: number;
-  status: OrderStatus;
+const keyboard: Product = {
+  id: 1,
+  title: "Клавиатура",
+  description:
+    "Механическая клавиатура",
+  price: 7500,
+  costPrice: 4800,
+  status: "published",
+  category: "electronics",
+  imageUrl:
+    "/images/keyboard.jpg",
+  createdAt: new Date(),
 };
 
-type CreateOrderData =
-  Omit<Order, "id" | "status">;
+type ProductListItem =
+  Pick<
+    Product,
+    | "id"
+    | "title"
+    | "price"
+    | "status"
+    | "imageUrl"
+  >;
 
-type ApiSchema = {
-  users: {
-    get: {
-      request: {
-        limit?: number;
-      };
-      response: User[];
-    };
-
-    getById: {
-      request: {
-        id: number;
-      };
-      response: User;
-    };
+const productListItem:
+  ProductListItem = {
+    id: 1,
+    title: "Клавиатура",
+    price: 7500,
+    status: "published",
+    imageUrl:
+      "/images/keyboard.jpg",
   };
 
-  order: {
-    create: {
-      request: CreateOrderData;
-      response: Order;
-    };
+type PublicProduct =
+  Omit<
+    Product,
+    "costPrice"
+  >;
 
-    getById: {
-      request: {
-        id: number;
-      };
-      response: Order;
-    };
-
-    getAll: {
-      request: {
-        userId?: number;
-      };
-      response: Order[];
-    };
+const publicProduct:
+  PublicProduct = {
+    id: 1,
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    status: "published",
+    category: "electronics",
+    imageUrl:
+      "/images/keyboard.jpg",
+    createdAt: new Date(),
   };
+
+type CreateProductCommand =
+  Omit<
+    Product,
+    | "id"
+    | "createdAt"
+    | "status"
+  >;
+
+const createProductCommand:
+  CreateProductCommand = {
+    title: "Мышь",
+    description:
+      "Беспроводная мышь",
+    price: 3200,
+    costPrice: 1900,
+    category: "electronics",
+    imageUrl:
+      "/images/mouse.jpg",
+  };
+
+type EditableProductFields =
+  Pick<
+    Product,
+    | "title"
+    | "description"
+    | "price"
+    | "category"
+    | "imageUrl"
+  >;
+
+type ProductUpdatePatch =
+  Partial<
+    EditableProductFields
+  >;
+
+type UpdateProductCommand = {
+  productId: Product["id"];
+} & ProductUpdatePatch;
+
+const updateTitle:
+  UpdateProductCommand = {
+    productId: 1,
+    title:
+      "Игровая клавиатура",
+  };
+
+const updatePrice:
+  UpdateProductCommand = {
+    productId: 1,
+    price: 6900,
+  };
+
+const updateSeveralFields:
+  UpdateProductCommand = {
+    productId: 1,
+    title:
+      "Компактная клавиатура",
+    description:
+      "Клавиатура без цифрового блока",
+    price: 7100,
+    category: "electronics",
+    imageUrl:
+      "/images/compact-keyboard.jpg",
+  };
+
+type CompleteProduct =
+  Required<Product>;
+
+const completeProduct:
+  CompleteProduct = {
+    id: 1,
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    costPrice: 4800,
+    status: "published",
+    category: "electronics",
+    imageUrl:
+      "/images/keyboard.jpg",
+    createdAt: new Date(),
 };
 
-type ResourceName =
-  keyof ApiSchema;
-
-type OperationName<
-  TResource extends ResourceName,
-> =
-  keyof ApiSchema[TResource];
-
-type EndpointName = {
-  [TResource in ResourceName]:
-    `${TResource}:${
-      Extract<
-        OperationName<TResource>,
-        string
-      >
-    }`;
-}[ResourceName];
-
-type EndpointDefinition<
-  TEndpoint extends EndpointName,
-> =
-  TEndpoint extends
-    `${infer TResource}:${infer TOperation}`
-      ? TResource extends ResourceName
-        ? TOperation extends
-            keyof ApiSchema[TResource]
-          ? ApiSchema[TResource][TOperation]
-          : never
-        : never
-      : never;
-
-type RequestOf<
-  TEndpoint extends EndpointName,
-> =
-  EndpointDefinition<TEndpoint>
-    extends {
-      request: infer TRequest;
-    }
-      ? TRequest
-      : never;
-
-type ResponseOf<
-  TEndpoint extends EndpointName,
-> =
-  EndpointDefinition<TEndpoint>
-    extends {
-      response: infer TResponse;
-    }
-      ? TResponse
-      : never;
-
-type EndpointHandler<
-  TEndpoint extends EndpointName,
-> = (
-  request: RequestOf<TEndpoint>,
-) =>
-  | ResponseOf<TEndpoint>
-  | Promise<ResponseOf<TEndpoint>>;
-
-type ApiHandlers = {
-  [TEndpoint in EndpointName]:
-    EndpointHandler<TEndpoint>;
+type ProductWithUndefinedImage = {
+  imageUrl?:
+    string | undefined;
 };
 
-type SingularResourceName<
-  TResource extends string,
-> =
-  TResource extends "users"
-    ? "Users"
-    : Capitalize<TResource>;
+type CompleteImage =
+  Required<
+    ProductWithUndefinedImage
+  >;
 
-type MethodNameOf<
-  TEndpoint extends EndpointName,
-> =
-  TEndpoint extends
-    `${infer TResource}:${infer TOperation}`
-      ? TResource extends ResourceName
-        ? TOperation extends string
-          ? `${
-              TOperation
-            }${
-              SingularResourceName<
-                TResource
-              >
-            }`
-          : never
-        : never
-      : never;
+const completeImage:
+  CompleteImage = {
+    imageUrl: undefined,
+  };
 
-type ClientMethodName =
-  MethodNameOf<EndpointName>;
+type ProductSnapshot =
+  Readonly<Product>;
 
-type ApiClient = {
-  [TEndpoint in EndpointName as
-    MethodNameOf<TEndpoint>
-  ]: (
-    request:
-      RequestOf<TEndpoint>,
-  ) => Promise<
-    ResponseOf<TEndpoint>
+const productSnapshot:
+  ProductSnapshot = {
+    ...keyboard,
+  };
+
+type ProductStatusFromModel =
+  Product["status"];
+
+const productStatusLabels:
+  Record<
+    ProductStatusFromModel,
+    string
+  > = {
+    draft: "Черновик",
+    published:
+      "Опубликован",
+    archived: "В архиве",
+  };
+
+type ProductCategoryFromModel =
+  Product["category"];
+
+type CategorySetting = {
+  title: string;
+  icon: string;
+};
+
+type CategorySettings =
+  Record<
+    ProductCategoryFromModel,
+    CategorySetting
+  >;
+
+const categorySettings:
+  CategorySettings = {
+    electronics: {
+      title: "Электроника",
+      icon: "monitor",
+    },
+    clothing: {
+      title: "Одежда",
+      icon: "shirt",
+    },
+    books: {
+      title: "Книги",
+      icon: "book",
+    },
+  };
+
+type VisibleProductStatus =
+  Exclude<
+    ProductStatus,
+    "archived"
+  >;
+
+type FinalProductStatus =
+  Extract<
+    ProductStatus,
+    | "published"
+    | "archived"
+  >;
+
+const visibleStatus:
+  VisibleProductStatus =
+    "published";
+
+const finalStatus:
+  FinalProductStatus =
+    "archived";
+
+type PublishProductCommand = {
+  productId: Product["id"];
+  status: Exclude<
+    Product["status"],
+    "draft"
   >;
 };
 
-const handlers: ApiHandlers = {
-  "users:get": (
-    request,
-  ) => {
-    const users: User[] = [
-      {
-        id: 1,
-        name: "Анна",
-        email: "anna@example.com",
-      },
-      {
-        id: 2,
-        name: "Борис",
-        email: "boris@example.com",
-      },
-      {
-        id: 3,
-        name: "Виктор",
-        email: "viktor@example.com",
-      },
-    ];
+const publishCommand:
+  PublishProductCommand = {
+    productId: 1,
+    status: "published",
+  };
 
-    if (
-      request.limit === undefined
-    ) {
-      return users;
-    }
+type ProductSearchResult =
+  | Product
+  | null
+  | undefined;
 
-    return users.slice(
-      0,
-      request.limit,
+type ExistingProduct =
+  NonNullable<
+    ProductSearchResult
+  >;
+
+const existingProduct:
+  ExistingProduct = keyboard;
+
+function createProduct(
+  command: CreateProductCommand,
+): Product {
+  return {
+    id: Date.now(),
+    title: command.title,
+    description:
+      command.description,
+    price: command.price,
+    costPrice:
+      command.costPrice,
+    status: "draft",
+    category:
+      command.category,
+    imageUrl:
+      command.imageUrl,
+    createdAt: new Date(),
+  };
+}
+
+type CreateProductParameters =
+  Parameters<
+    typeof createProduct
+  >;
+
+type CreatedProduct =
+  ReturnType<
+    typeof createProduct
+  >;
+
+const createArguments:
+  CreateProductParameters = [
+    createProductCommand,
+  ];
+
+const createdProduct:
+  CreatedProduct =
+    createProduct(
+      createArguments[0],
     );
-  },
 
-  "users:getById": (
-    request,
-  ) => {
-    return {
-      id: request.id,
-      name: "Анна",
-      email: "anna@example.com",
-    };
-  },
-
-  "order:create": async (
-    request,
-  ) => {
-    return {
-      id: 101,
-      userId: request.userId,
-      amount: request.amount,
-      status: "new",
-    };
-  },
-
-  "order:getById": (
-    request,
-  ) => {
-    return {
-      id: request.id,
-      userId: 1,
-      amount: 5000,
-      status: "paid",
-    };
-  },
-
-  "order:getAll": (
-    request,
-  ) => {
-    const orders: Order[] = [
-      {
-        id: 101,
-        userId: 1,
-        amount: 5000,
-        status: "paid",
-      },
-      {
-        id: 102,
-        userId: 2,
-        amount: 3200,
-        status: "new",
-      },
-      {
-        id: 103,
-        userId: 1,
-        amount: 7400,
-        status: "cancelled",
-      },
-    ];
-
-    if (
-      request.userId === undefined
-    ) {
-      return orders;
-    }
-
-    return orders.filter(
-      (order) =>
-        order.userId ===
-        request.userId,
+function withLogging<
+  TArguments extends unknown[],
+  TResult,
+>(
+  fn: (
+    ...args: TArguments
+  ) => TResult,
+): (
+  ...args: TArguments
+) => TResult {
+  return (
+    ...args: TArguments
+  ): TResult => {
+    console.log(
+      "Аргументы:",
+      args,
     );
-  },
+
+    const result =
+      fn(...args);
+
+    console.log(
+      "Результат:",
+      result,
+    );
+
+    return result;
+  };
+}
+
+const loggedCreateProduct =
+  withLogging(createProduct);
+
+const loggedProduct =
+  loggedCreateProduct({
+    title: "Монитор",
+    description:
+      "Монитор с диагональю 27 дюймов",
+    price: 28000,
+    costPrice: 21000,
+    category: "electronics",
+  });
+
+class ProductEntity {
+  constructor(
+    public readonly id: number,
+    public title: string,
+    public price: number,
+    public status:
+      ProductStatus,
+  ) {}
+}
+
+type ProductEntityConstructorParameters =
+  ConstructorParameters<
+    typeof ProductEntity
+  >;
+
+type ProductEntityInstance =
+  InstanceType<
+    typeof ProductEntity
+  >;
+
+const productEntityArguments:
+  ProductEntityConstructorParameters = [
+    1,
+    "Клавиатура",
+    7500,
+    "published",
+  ];
+
+const productEntity:
+  ProductEntityInstance =
+    new ProductEntity(
+      ...productEntityArguments,
+    );
+
+async function loadProducts():
+  Promise<Product[]> {
+  return [
+    keyboard,
+    {
+      id: 2,
+      title: "Учебник",
+      description:
+        "Учебник по TypeScript",
+      price: 1800,
+      costPrice: 900,
+      status: "published",
+      category: "books",
+      createdAt: new Date(),
+    },
+  ];
+}
+
+type LoadProductsReturn =
+  ReturnType<
+    typeof loadProducts
+  >;
+
+type LoadedProducts =
+  Awaited<
+    ReturnType<
+      typeof loadProducts
+    >
+  >;
+
+type CatalogState = {
+  products: Product[];
+  selectedProduct:
+    Product | null;
+  loading: boolean;
+  error: string | null;
 };
 
-const apiClient: ApiClient = {
-  async getUsers(request) {
-    const result =
-      await handlers["users:get"](
-        request,
-      );
+type CatalogStatePatch =
+  Partial<CatalogState>;
 
-    return result;
-  },
+function updateCatalogState(
+  current: CatalogState,
+  patch: CatalogStatePatch,
+): CatalogState {
+  return {
+    ...current,
+    ...patch,
+  };
+}
 
-  async getByIdUsers(request) {
-    const result =
-      await handlers[
-        "users:getById"
-      ](request);
+const initialCatalogState:
+  CatalogState = {
+    products: [],
+    selectedProduct: null,
+    loading: false,
+    error: null,
+  };
 
-    return result;
-  },
+const loadingCatalogState =
+  updateCatalogState(
+    initialCatalogState,
+    {
+      loading: true,
+    },
+  );
 
-  async createOrder(request) {
-    const result =
-      await handlers[
-        "order:create"
-      ](request);
+const loadedCatalogState =
+  updateCatalogState(
+    loadingCatalogState,
+    {
+      products: [
+        keyboard,
+      ],
+      loading: false,
+    },
+  );
 
-    return result;
-  },
-
-  async getByIdOrder(request) {
-    const result =
-      await handlers[
-        "order:getById"
-      ](request);
-
-    return result;
-  },
-
-  async getAllOrder(request) {
-    const result =
-      await handlers[
-        "order:getAll"
-      ](request);
-
-    return result;
-  },
-};
+const selectedCatalogState =
+  updateCatalogState(
+    loadedCatalogState,
+    {
+      selectedProduct:
+        keyboard,
+    },
+  );
 
 async function run():
   Promise<void> {
-  const users =
-    await apiClient.getUsers({
-      limit: 2,
-    });
+  const products:
+    LoadedProducts =
+      await loadProducts();
 
   console.log(
-    "Пользователи:",
-    users,
+    "Товары:",
+    products,
   );
 
-  const user =
-    await apiClient.getByIdUsers({
-      id: 1,
-    });
-
   console.log(
-    "Пользователь:",
-    user,
+    "Созданный товар:",
+    createdProduct,
   );
 
-  const createdOrder =
-    await apiClient.createOrder({
-      userId: 1,
-      amount: 5000,
-    });
-
   console.log(
-    "Созданный заказ:",
-    createdOrder,
+    "Товар с логированием:",
+    loggedProduct,
   );
 
-  const order =
-    await apiClient.getByIdOrder({
-      id: 101,
-    });
-
   console.log(
-    "Найденный заказ:",
-    order,
+    "Экземпляр класса:",
+    productEntity,
   );
 
-  const userOrders =
-    await apiClient.getAllOrder({
-      userId: 1,
-    });
-
   console.log(
-    "Заказы пользователя:",
-    userOrders,
+    "Состояние каталога:",
+    selectedCatalogState,
   );
 
-  const allOrders =
-    await apiClient.getAllOrder({});
+  console.log(
+    "Подписи статусов:",
+    productStatusLabels,
+  );
 
   console.log(
-    "Все заказы:",
-    allOrders,
+    "Настройки категорий:",
+    categorySettings,
   );
 }
 
@@ -1948,114 +2383,67 @@ void run();
 // Ожидаемые ошибки TypeScript:
 
 // @ts-expect-error:
-// ресурс products отсутствует
-const wrongEndpoint:
-  EndpointName = "products:get";
-
-// @ts-expect-error:
-// операция create отсутствует
-// у ресурса users
-const wrongUsersEndpoint:
-  EndpointName = "users:create";
-
-// @ts-expect-error:
-// id должен быть number
-apiClient.getByIdUsers({
-  id: "1",
-});
-
-// @ts-expect-error:
-// отсутствует обязательное
-// свойство amount
-apiClient.createOrder({
-  userId: 1,
-});
-
-// @ts-expect-error:
-// свойство discount отсутствует
-apiClient.createOrder({
-  userId: 1,
-  amount: 5000,
-  discount: 10,
-});
-
-// @ts-expect-error:
-// такого метода нет
-apiClient.deleteOrder({
-  id: 1,
-});
-```
-
-## Пример результата
-
-```text
-Пользователи: [
-  {
+// свойства costPrice нет
+// в PublicProduct
+const wrongPublicProduct:
+  PublicProduct = {
     id: 1,
-    name: "Анна",
-    email: "anna@example.com"
-  },
-  {
-    id: 2,
-    name: "Борис",
-    email: "boris@example.com"
-  }
-]
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    costPrice: 4800,
+    status: "published",
+    category: "electronics",
+    createdAt: new Date(),
+  };
 
-Пользователь: {
-  id: 1,
-  name: "Анна",
-  email: "anna@example.com"
-}
+// @ts-expect-error:
+// свойство status нельзя
+// изменять этой командой
+const wrongUpdate:
+  UpdateProductCommand = {
+    productId: 1,
+    status: "archived",
+  };
 
-Созданный заказ: {
-  id: 101,
-  userId: 1,
-  amount: 5000,
-  status: "new"
-}
+// @ts-expect-error:
+// imageUrl обязательно
+const incompleteProduct:
+  CompleteProduct = {
+    id: 1,
+    title: "Клавиатура",
+    description:
+      "Механическая клавиатура",
+    price: 7500,
+    costPrice: 4800,
+    status: "published",
+    category: "electronics",
+    createdAt: new Date(),
+  };
 
-Найденный заказ: {
-  id: 101,
-  userId: 1,
-  amount: 5000,
-  status: "paid"
-}
+// @ts-expect-error:
+// свойства снимка доступны
+// только для чтения
+productSnapshot.price = 8000;
 
-Заказы пользователя: [
-  {
-    id: 101,
-    userId: 1,
-    amount: 5000,
-    status: "paid"
-  },
-  {
-    id: 103,
-    userId: 1,
-    amount: 7400,
-    status: "cancelled"
-  }
-]
+// @ts-expect-error:
+// archived исключён
+const wrongVisibleStatus:
+  VisibleProductStatus =
+    "archived";
 
-Все заказы: [
-  {
-    id: 101,
-    userId: 1,
-    amount: 5000,
-    status: "paid"
-  },
-  {
-    id: 102,
-    userId: 2,
-    amount: 3200,
-    status: "new"
-  },
-  {
-    id: 103,
-    userId: 1,
-    amount: 7400,
-    status: "cancelled"
-  }
-]
+// @ts-expect-error:
+// draft исключён
+const wrongPublishCommand:
+  PublishProductCommand = {
+    productId: 1,
+    status: "draft",
+  };
+
+// @ts-expect-error:
+// null удалён
+const missingProduct:
+  ExistingProduct = null;
 ```
 
