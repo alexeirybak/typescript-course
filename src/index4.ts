@@ -1,10 +1,20 @@
-type IsString<T> = T extends string ? true : false;
+type User = {
+  readonly id: number;
+  name: string;
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  avatarUrl?: string;
+  readonly createdAt: Date;
+};
 
-type A = IsString<"hello">;
-type B = IsString<number>;
+type UserListItem = Pick<User, "id" | "name" | "role">;
 
-type ArrayElement<T> = T extends readonly (infer TItem)[] ? TItem : never;
+type MyPick<T, K extends keyof T> = {
+  [P in K]: T[P];
+};
 
-type Item = ArrayElement<string[]>;
-type NumberItem = ArrayElement<number[]>;
-type WrongItem = ArrayElement<boolean>;
+type UserCard = {
+  id: number;
+  displayName: string;
+  roleLabel: string;
+};

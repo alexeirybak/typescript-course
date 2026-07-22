@@ -1,29 +1,26 @@
-console.log(typeof 42);
-
-const defaultConfig = {
-  locale: "ru",
-  pageSize: 20,
-  theme: "dark",
-  features: {
-    recommendations: true,
-  },
+type User = {
+  readonly id: number;
+  name: string;
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  avatarUrl?: string;
+  readonly createdAt: Date;
 };
 
-// type Config = {
-//   locale: string;
-//   pageSize: number;
-//   features: {
-//     recommendations: boolean;
-//   };
+type CompleteUser = Required<User>;
+
+type MyRequired<T> = {
+  [K in keyof T]-?: T[K];
+};
+
+type Example = {
+  value: string | undefined;
+};
+
+//const user1: Example = {};
+
+// type Example = {
+//   value: string | undefined;
 // };
 
-type Config = typeof defaultConfig;
-
-const roles = ["admin", "editor", "viewer"] as const;
-
-typeof roles;
-
-type Role = (typeof roles)[number];
-
-const role: Role = "admin";
-//const role2: Role = "manager";
+type CompleteExample = Required<Example>;

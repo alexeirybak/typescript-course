@@ -1,37 +1,30 @@
 type User = {
-  id: number;
+  readonly id: number;
   name: string;
-  active: boolean;
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  avatarUrl?: string;
+  readonly createdAt: Date;
 };
 
-type UserKey = keyof User;
+type PartialUser = Partial<User>;
 
-//type UserKey = "id" | "name" | "active"
-
-const key1: UserKey = "id";
-const key2: UserKey = "name";
-const key3: UserKey = "active";
-
-function pickProperty<K extends UserKey>(user: User, key: K): User[K] {
-  return user[key];
-}
+type MyPartial<T> = {
+  [K in keyof T]?: T[K];
+};
 
 const user: User = {
   id: 1,
   name: "Алексей",
-  active: true,
+  email: "alex@example.com",
+  role: "admin",
+  createdAt: new Date(),
 };
 
-// const value = pickProperty(user, "age");
+const partialUser1: PartialUser = {};
 
-type Scores = {
-  [id: number]: number;
+const partialUser: PartialUser = {
+  name: "Алексей",
 };
 
-type ScoreKey = keyof Scores;
-
-type Dictionary = {
-  [key: string]: string;
-};
-
-type DictionaryKey = keyof Dictionary;
+// const user: User = partialUser;

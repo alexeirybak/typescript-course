@@ -1,45 +1,21 @@
+type Status = "draft" | "pending" | "paid" | "cancelled";
+
+type ActiveStatus = Exclude<Status, "cancelled">;
+
+type TerminalStatus = Extract<Status, "paid" | "cancelled">;
+
 type User = {
-  id: number;
-  name: string;
-  active: boolean;
-};
-
-type Flags<T> = {
-  [K in keyof T]: boolean;
-};
-
-type UserFlags = Flags<User>;
-
-type MyPartial<T> = {
-  [K in keyof T]?: T[K];
-};
-
-type PartialUser = MyPartial<User>;
-
-type MyReadonly<T> = {
-  readonly [K in keyof T]: T[K];
-};
-
-//type ReadonlyUser = MyReadonly<User>;
-
-type Mutable<T> = {
-  -readonly [K in keyof T]: T[K];
-};
-
-type ReadonlyUser = {
   readonly id: number;
-  readonly name: string;
+  name: string;
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  avatarUrl?: string;
+  readonly createdAt: Date;
 };
 
-type EditableUser = Mutable<ReadonlyUser>;
+type MaybeUser = User | null | undefined;
+type ExistingUser = NonNullable<MaybeUser>;
 
-type RequiredFields<T> = {
-  [K in keyof T]-?: T[K];
-};
-
-type OptionalUser = {
-  id?: number;
-  name?: string;
-};
-
-type RequiredUser = RequiredFields<OptionalUser>;
+type MyExclude<T, U> = T extends U ? never : T;
+type MyExtract<T, U> = T extends U ? T : never;
+type MyNonNullable<T> = T extends null | undefined ? never : T;

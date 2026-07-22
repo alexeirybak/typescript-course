@@ -1,55 +1,55 @@
-type AppEvents = {
-  "user:created": {
-    userId: number;
-    name: string;
-  };
-
-  "order:paid": {
-    orderId: number;
-    amount: number;
-  };
+type Order = {
+  readonly id: string;
+  readonly createdAt: Date;
+  userId: number;
+  status: "draft" | "paid" | "cancelled";
+  items: Array<{
+    productId: number;
+    quantity: number;
+    unitPrice: number;
+  }>;
 };
 
-type EventName = keyof AppEvents;
-//"user:created" | "order:paid"
-
-type EventEnvelope<K extends EventName> = {
-  type: K;
-  payload: AppEvents[K];
-  timestamp: Date;
+type OrderListItem = Pick<Order, "id" | "createdAt" | "status"> & {
+  total: number;
 };
 
-type UserCreatedEvent = {
-  type: "user:created";
-  payload: {
-    userId: number;
-    name: string;
-  };
-  timestamp: Date;
+const orderListItem: OrderListItem = {
+  id: "order-1",
+  createdAt: new Date(),
+  status: "paid",
+  total: 6500,
 };
 
-type AnyEvent = {
-  [K in EventName]: EventEnvelope<K>;
-}[EventName];
+type CreateOrderCommand = {
+  userId: Order["userId"];
+  items: Array<{
+    productId: number;
+    quantity: number;
+  }>;
+};
 
-// {
-//   "user:created":
-//     EventEnvelope<"user:created">;
+const createCommand: CreateOrderCommand = {
+  userId: 15,
+  items: [
+    {
+      productId: 101,
+      quantity: 2,
+    },
+  ],
+};
 
-//   "order:paid":
-//     EventEnvelope<"order:paid">;
-// }
+type ChangeOrderStatusCommand = {
+  orderId: Order["id"];
+  status: Exclude<Order["status"], "draft">;
+};
 
-// EventEnvelope<"user:created"> | EventEnvelope<"order:paid">;
+const changeStatusCommand: ChangeOrderStatusCommand = {
+  orderId: "order-1",
+  status: "paid",
+};
 
-function handleEvent(event: AnyEvent): void {
-  switch (event.type) {
-    case "user:created":
-      console.log(event.payload.name);
-      break;
-
-    case "order:paid":
-      console.log(event.payload.amount);
-      break;
-  }
-}
+// const wrongCommand: ChangeOrderStatusCommand = {
+//   orderId: "order-1",
+//   status: "draft",
+// };
