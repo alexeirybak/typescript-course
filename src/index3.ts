@@ -1,28 +1,14 @@
 type User = {
-  id: number;
+  readonly id: number;
   name: string;
-  active: boolean;
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  avatarUrl?: string;
+  readonly createdAt: Date;
 };
 
-type UserName = User["name"];
+type ReadonlyUser = Readonly<User>;
 
-const name: UserName = "Алексей";
-
-//type UserIdentity = User["id" | "name"];
-
-type UserIdentity = number | string;
-
-type ApiResponse = {
-  users: Array<{
-    id: number;
-    name: string;
-    email: string;
-  }>;
+type MyReadonly<T> = {
+  readonly [K in keyof T]: T[K];
 };
-
-// type ApiUser = {
-//   id: number;
-//   name: string;
-// };
-
-type ApiUser = ApiResponse["users"][number];

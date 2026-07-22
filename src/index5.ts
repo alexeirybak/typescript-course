@@ -1,10 +1,12 @@
-type ToArray<T> = T extends unknown ? T[] : never;
+type User = {
+  readonly id: number;
+  name: string;
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  avatarUrl?: string;
+  readonly createdAt: Date;
+};
 
-type Numbers = ToArray<number>;
+type NewUser = Omit<User, "id" | "createdAt">;
 
-type Distributed = ToArray<string | number>;
-// (string[] | number[])
-
-type ToArrayTogether<T> = [T] extends [unknown] ? T[] : never;
-
-type Together = ToArrayTogether<string | number>;
+type MyOmit<T, K extends PropertyKey> = Pick<T, Exclude<keyof T, K>>;

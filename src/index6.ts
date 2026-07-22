@@ -1,27 +1,22 @@
-type FunctionResult<T> = T extends (...args: never[]) => infer TResult
-  ? TResult
-  : never;
+type User = {
+  readonly id: number;
+  name: string;
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  avatarUrl?: string;
+  readonly createdAt: Date;
+};
 
-function createUser() {
-  return {
-    id: 1,
-    name: "Анна",
-  };
-}
+type Role = User["role"];
 
-typeof createUser;
+const roleLabels: Record<Role, string> = {
+  admin: "Администратор",
+  editor: "Редактор",
+  viewer: "Наблюдатель",
+};
 
-type CreatedUser = FunctionResult<typeof createUser>;
+type MyRecord<K extends PropertyKey, V> = {
+  [P in K]: V;
+};
 
-// type CreatedUser = {
-//   id: number;
-//   name: string;
-// };
-
-type PromiseValue<T> = T extends Promise<infer TValue> ? TValue : T;
-
-type AsyncNumber = PromiseValue<Promise<number>>;
-
-type RegularString = PromiseValue<string>;
-
-type Result = Awaited<Promise<Promise<number>>>;
+type OptionalRoleLabels = Partial<Record<Role, string>>;

@@ -1,28 +1,24 @@
-type Events = {
-  userCreated: {
-    userId: number;
+function createOrder(userId: number, productIds: number[]) {
+  return {
+    id: crypto.randomUUID(),
+    userId,
+    productIds,
+    status: "draft" as const,
+    createdAt: new Date(),
   };
+}
 
-  orderPaid: {
-    orderId: number;
-    amount: number;
-  };
+type CreateOrderParameters = Parameters<typeof createOrder>;
+
+type CreatedOrder = ReturnType<typeof createOrder>;
+
+const orderArguments: CreateOrderParameters = [15, [101, 102, 103]];
+const order = createOrder(...orderArguments);
+
+const savedOrder: CreatedOrder = {
+  id: "123e4567-e89b-12d3-a456-426614174000",
+  userId: 15,
+  productIds: [101, 102],
+  status: "draft",
+  createdAt: new Date(1755000000000),
 };
-
-type EventHandlers<T> = {
-  [K in keyof T as `on${Capitalize<string & K>}`]: (payload: T[K]) => void;
-};
-
-type Handlers = EventHandlers<Events>;
-
-type StringProperties<T> = {
-  [K in keyof T as T[K] extends string ? K : never]: T[K];
-};
-
-type User = {
-  id: number;
-  name: string;
-  active: boolean;
-};
-
-type UserStrings = StringProperties<User>;
