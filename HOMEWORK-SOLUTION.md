@@ -1,2449 +1,2096 @@
+Оформление и уровень детализации сохранены по образцу из прикреплённого решения. 
+
 # Домашнее задание. Решение
 
 ## Контрольные вопросы
 
-### 1. Чем `Partial<T>` отличается от `Required<T>`?
+### 1. Чем именованный экспорт отличается от `default export`?
 
-`Partial<T>` делает все свойства исходного типа необязательными.
+Именованный экспорт позволяет экспортировать из одного модуля несколько сущностей под их собственными именами.
 
 ```ts
-type User = {
+export type Product = {
   id: number;
-  name: string;
-  email: string;
+  title: string;
 };
 
-type PartialUser =
-  Partial<User>;
-```
-
-Получится тип:
-
-```ts
-type PartialUser = {
-  id?: number;
-  name?: string;
-  email?: string;
-};
-```
-
-Объект может содержать только часть свойств:
-
-```ts
-const userDraft:
-  PartialUser = {
-    name: "Анна",
+export function createProduct(
+  id: number,
+  title: string,
+): Product {
+  return {
+    id,
+    title,
   };
+}
 ```
 
-`Required<T>` выполняет противоположное преобразование.
-
-Он делает все свойства обязательными.
+При импорте необходимо использовать те же имена:
 
 ```ts
-type UserDraft = {
-  id?: number;
-  name?: string;
-  email?: string;
-};
-
-type CompleteUser =
-  Required<UserDraft>;
+import {
+  createProduct,
+  type Product,
+} from "./product.js";
 ```
 
-Получится:
+Переименовать именованный импорт можно с помощью `as`:
 
 ```ts
-type CompleteUser = {
-  id: number;
-  name: string;
-  email: string;
-};
+import {
+  createProduct as makeProduct,
+} from "./product.js";
+```
+
+`default export` экспортирует одну основную сущность модуля.
+
+```ts
+export default class ProductService {
+  getAll(): string[] {
+    return [];
+  }
+}
+```
+
+При импорте имя можно выбрать самостоятельно:
+
+```ts
+import ProductService
+  from "./product-service.js";
+```
+
+Можно использовать другое имя:
+
+```ts
+import StoreProductService
+  from "./product-service.js";
 ```
 
 Основное отличие:
 
-* `Partial<T>` добавляет необязательность;
-* `Required<T>` удаляет необязательность;
-* оба utility type сохраняют исходные типы значений свойств.
+* именованных экспортов в одном модуле может быть несколько;
+* `default export` в одном модуле может быть только один;
+* имя именованного импорта должно совпадать с экспортом;
+* имя `default`-импорта выбирает импортирующий код.
 
 ---
 
-### 2. Почему `Readonly<T>` не делает вложенные объекты полностью неизменяемыми?
+### 2. Как импортировать сущность, экспортированную через `default export`?
 
-`Readonly<T>` выполняет только поверхностное преобразование.
+Рассмотрим файл:
 
-Рассмотрим тип:
-
-```ts
-type Product = {
-  title: string;
-  details: {
-    weight: number;
-  };
-  tags: string[];
-};
+```text
+src/services/product-service.ts
 ```
 
-Применим `Readonly`:
+В нём класс экспортируется по умолчанию:
 
 ```ts
-type ReadonlyProduct =
-  Readonly<Product>;
+export default class ProductService {
+  getAll(): string[] {
+    return [];
+  }
+}
 ```
 
-Теперь нельзя заменить свойства верхнего уровня:
+Импорт выполняется без фигурных скобок:
 
 ```ts
-const product:
-  ReadonlyProduct = {
-    title: "Клавиатура",
-    details: {
-      weight: 800,
-    },
-    tags: [
-      "electronics",
-    ],
-  };
+import ProductService
+  from "./services/product-service.js";
 ```
 
-Следующая операция запрещена:
+Имя при импорте может отличаться:
+
+```ts
+import StoreProductService
+  from "./services/product-service.js";
+```
+
+Оба варианта импортируют один и тот же класс.
+
+Следующая запись неправильная:
 
 ```ts
 // Ошибка TypeScript:
-// product.title = "Мышь";
+// import {
+//   ProductService,
+// } from "./services/product-service.js";
 ```
 
-Нельзя заменить объект `details` целиком:
-
-```ts
-// Ошибка TypeScript:
-// product.details = {
-//   weight: 500,
-// };
-```
-
-Но свойства внутри `details` не стали `readonly`:
-
-```ts
-product.details.weight = 900;
-```
-
-Массив тоже остаётся изменяемым:
-
-```ts
-product.tags.push(
-  "computer",
-);
-```
-
-`Readonly<T>` добавляет `readonly` только к свойствам самого объекта.
-
-Для полной рекурсивной неизменяемости нужен отдельный тип, например `DeepReadonly<T>`.
+Фигурные скобки используются для именованных экспортов, а не для `default export`.
 
 ---
 
-### 3. Когда удобнее использовать `Pick<T, K>`, а когда `Omit<T, K>`?
+### 3. Для чего в проекте создают публичную точку входа `index.ts`?
 
-`Pick<T, K>` выбирает указанные свойства исходного типа.
+Публичная точка входа объединяет экспортируемые сущности библиотеки в одном модуле.
 
-```ts
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-  costPrice: number;
-  description: string;
-};
-```
-
-Если нужны только три свойства, удобно использовать `Pick`:
+Без `index.ts` внешний код вынужден знать внутреннюю структуру проекта:
 
 ```ts
-type ProductListItem =
-  Pick<
-    Product,
-    "id" | "title" | "price"
-  >;
+import {
+  createProduct,
+} from "./domain/product.js";
+
+import {
+  createOrder,
+} from "./domain/order.js";
+
+import ProductService
+  from "./services/product-service.js";
+
+import {
+  OrderService,
+} from "./services/order-service.js";
 ```
 
-Результат:
+Создадим файл:
+
+```text
+src/index.ts
+```
+
+В нём переэкспортируем публичные сущности:
 
 ```ts
-type ProductListItem = {
-  id: number;
-  title: string;
-  price: number;
-};
+export {
+  createProduct,
+} from "./domain/product.js";
+
+export type {
+  Product,
+} from "./domain/product.js";
+
+export {
+  createOrder,
+} from "./domain/order.js";
+
+export type {
+  Order,
+  OrderItem,
+} from "./domain/order.js";
+
+export {
+  default as ProductService,
+} from "./services/product-service.js";
+
+export {
+  OrderService,
+} from "./services/order-service.js";
 ```
 
-`Omit<T, K>` исключает указанные свойства.
-
-Если нужно оставить почти весь объект и удалить только одно поле, удобнее использовать `Omit`:
+После этого внешний код использует один импорт:
 
 ```ts
-type PublicProduct =
-  Omit<Product, "costPrice">;
+import {
+  createOrder,
+  createProduct,
+  OrderService,
+  ProductService,
+  type OrderItem,
+  type Product,
+} from "./index.js";
 ```
 
-Результат:
-
-```ts
-type PublicProduct = {
-  id: number;
-  title: string;
-  price: number;
-  description: string;
-};
-```
-
-Правило выбора:
-
-* `Pick` удобен, когда нужно оставить небольшое количество свойств;
-* `Omit` удобен, когда нужно исключить небольшое количество свойств;
-* следует выбирать вариант, который яснее показывает структуру нового типа.
+`index.ts` определяет публичный API библиотеки.
 
 ---
 
-### 4. Чем `Omit<T, K>` отличается от `Exclude<T, U>`?
+### 4. Почему внешнему коду лучше импортировать сущности из `index.ts`, а не из внутренних файлов библиотеки?
 
-`Omit<T, K>` работает с объектными типами.
+Импорт из внутренних файлов связывает внешний код со структурой проекта.
 
-Он удаляет свойства объекта.
-
-```ts
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-};
-
-type ProductWithoutId =
-  Omit<Product, "id">;
-```
-
-Результат:
+Например:
 
 ```ts
-type ProductWithoutId = {
-  title: string;
-  price: number;
-};
+import {
+  createProduct,
+} from "./domain/product.js";
 ```
 
-`Exclude<T, U>` работает с объединениями типов.
+Если файл переместить:
 
-Он удаляет из объединения указанные варианты.
+```text
+src/domain/product.ts
+```
+
+в:
+
+```text
+src/models/product.ts
+```
+
+все внешние импорты придётся изменить.
+
+При использовании публичной точки входа внешний код продолжает импортировать:
 
 ```ts
-type ProductStatus =
-  | "draft"
-  | "published"
-  | "archived";
-
-type ActiveProductStatus =
-  Exclude<
-    ProductStatus,
-    "archived"
-  >;
+import {
+  createProduct,
+} from "./index.js";
 ```
 
-Результат:
+Изменить нужно только переэкспорт внутри `index.ts`.
+
+Кроме того, публичная точка входа позволяет скрыть внутренние сущности.
+
+Например, функция экспортируется из внутреннего файла:
 
 ```ts
-type ActiveProductStatus =
-  | "draft"
-  | "published";
+export function validateProductPrice(
+  price: number,
+): boolean {
+  return price > 0;
+}
 ```
 
-Основное отличие:
+Но если её не переэкспортировать из `index.ts`, она не станет частью публичного API библиотеки.
 
-* `Omit` исключает ключи объекта;
-* `Exclude` исключает варианты из union;
-* результатом `Omit` является объектный тип;
-* результатом `Exclude` является новое объединение.
+Таким образом, `index.ts`:
+
+* упрощает импорты;
+* скрывает внутреннюю структуру;
+* уменьшает связанность;
+* определяет публичный API;
+* позволяет менять внутренние файлы без изменения внешнего кода.
 
 ---
 
-### 5. Для чего используется `Record<K, V>`?
+### 5. Для чего нужны файлы деклараций `.d.ts`?
 
-`Record<K, V>` создаёт объектный тип с заданным набором ключей.
+Файлы `.d.ts` описывают типы и публичный API TypeScript- или JavaScript-кода.
 
-Первый параметр определяет ключи объекта.
-
-Второй параметр определяет тип значений.
+Рассмотрим функцию:
 
 ```ts
-type ProductStatus =
-  | "draft"
-  | "published"
-  | "archived";
-```
-
-Создадим подписи для всех статусов:
-
-```ts
-const statusLabels:
-  Record<
-    ProductStatus,
-    string
-  > = {
-    draft: "Черновик",
-    published:
-      "Опубликован",
-    archived: "В архиве",
+export function createProduct(
+  id: number,
+  title: string,
+): Product {
+  return {
+    id,
+    title,
   };
+}
 ```
 
-TypeScript проверяет:
-
-* наличие всех ключей;
-* отсутствие неизвестных ключей;
-* тип каждого значения.
-
-Если пропустить один статус, возникнет ошибка:
+После генерации декларации TypeScript создаст примерно такой файл:
 
 ```ts
-// Ошибка TypeScript:
-// const incompleteLabels:
-//   Record<
-//     ProductStatus,
-//     string
-//   > = {
-//     draft: "Черновик",
-//     published:
-//       "Опубликован",
-//   };
+export declare function createProduct(
+  id: number,
+  title: string,
+): Product;
 ```
 
-`Record` удобно использовать для:
+В декларации сохраняются:
 
-* словарей;
-* таблиц соответствий;
-* настроек;
-* обработчиков;
-* исчерпывающего описания всех вариантов union.
+* параметры;
+* типы параметров;
+* возвращаемый тип;
+* экспортируемые типы;
+* классы;
+* интерфейсы;
+* публичные свойства и методы.
+
+Реализация функции в `.d.ts` отсутствует.
+
+Файлы деклараций нужны, чтобы другой TypeScript-проект мог:
+
+* проверять правильность вызовов;
+* получать автодополнение;
+* видеть документацию типов;
+* обнаруживать ошибки;
+* использовать библиотеку без доступа к её исходному TypeScript-коду.
 
 ---
 
-### 6. Чем `Extract<T, U>` отличается от `Exclude<T, U>`?
+### 6. Чем файл `.d.ts` отличается от обычного файла `.ts`?
 
-`Exclude<T, U>` удаляет из объединения варианты, совместимые с `U`.
-
-```ts
-type Status =
-  | "draft"
-  | "published"
-  | "archived";
-
-type NotArchived =
-  Exclude<
-    Status,
-    "archived"
-  >;
-```
-
-Результат:
+Обычный файл `.ts` может содержать типы и исполняемый код.
 
 ```ts
-type NotArchived =
-  | "draft"
-  | "published";
+export function add(
+  first: number,
+  second: number,
+): number {
+  return first + second;
+}
 ```
 
-`Extract<T, U>` оставляет только варианты, совместимые с `U`.
+После компиляции из него будет создан JavaScript:
+
+```js
+export function add(
+  first,
+  second,
+) {
+  return first + second;
+}
+```
+
+Файл `.d.ts` содержит только объявления:
 
 ```ts
-type FinalStatus =
-  Extract<
-    Status,
-    | "published"
-    | "archived"
-  >;
+export declare function add(
+  first: number,
+  second: number,
+): number;
 ```
 
-Результат:
+В нём нет тела функции.
 
-```ts
-type FinalStatus =
-  | "published"
-  | "archived";
-```
+Главное отличие:
 
-Разница:
-
-* `Exclude` удаляет совпадающие варианты;
-* `Extract` сохраняет совпадающие варианты.
+* `.ts` может содержать реализацию;
+* `.d.ts` описывает существующую реализацию;
+* `.ts` компилируется в JavaScript;
+* `.d.ts` не создаёт исполняемый код.
 
 ---
 
-### 7. Что удаляет `NonNullable<T>`?
+### 7. Какие настройки `tsconfig.json` включают генерацию деклараций и карт деклараций?
 
-`NonNullable<T>` удаляет из объединения:
+Генерацию файлов `.d.ts` включает параметр:
 
-```ts
-null
+```json
+"declaration": true
 ```
 
-и:
+Генерацию карт деклараций включает:
 
-```ts
-undefined
+```json
+"declarationMap": true
 ```
 
 Пример:
 
-```ts
-type Product = {
-  id: number;
-  title: string;
-};
-
-type SearchResult =
-  | Product
-  | null
-  | undefined;
+```json
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist"
+  }
+}
 ```
 
-Применим `NonNullable`:
+После выполнения:
 
-```ts
-type ExistingProduct =
-  NonNullable<SearchResult>;
+```bash
+npx tsc
 ```
 
-Результат:
+TypeScript создаст:
 
-```ts
-type ExistingProduct =
-  Product;
+```text
+product.js
+product.d.ts
+product.d.ts.map
 ```
 
-Теперь `null` и `undefined` использовать нельзя:
+`declarationMap` связывает декларацию с исходным TypeScript-файлом.
+
+Это позволяет редактору переходить от использования библиотечного типа к исходному коду, если исходники доступны.
+
+---
+
+### 8. Что означает ключевое слово `declare`?
+
+Ключевое слово `declare` сообщает TypeScript, что некоторая сущность существует, но её реализация находится за пределами текущего TypeScript-файла.
+
+Например:
 
 ```ts
-const product:
-  ExistingProduct = {
-    id: 1,
-    title: "Клавиатура",
-  };
+declare const APP_VERSION: string;
 ```
+
+После такого объявления TypeScript разрешает использовать переменную:
+
+```ts
+const version: string =
+  APP_VERSION;
+```
+
+Компилятор знает, что `APP_VERSION` имеет тип `string`.
+
+Однако `declare` не создаёт переменную.
+
+Реальное значение должно быть предоставлено другим кодом:
+
+* JavaScript-файлом;
+* средой выполнения;
+* браузером;
+* сборщиком;
+* сторонней библиотекой.
+
+`declare` описывает существующий API, но не реализует его.
+
+---
+
+### 9. Почему объявление через `declare` не создаёт JavaScript-код?
+
+Задача `declare` — передать информацию компилятору типов.
+
+Рассмотрим объявление:
+
+```ts
+declare const APP_VERSION: string;
+```
+
+TypeScript использует его только во время проверки программы.
+
+В итоговый JavaScript это объявление не попадает.
+
+Если выполнить:
+
+```ts
+console.log(APP_VERSION);
+```
+
+а реальное значение нигде не создано, во время запуска возникнет ошибка:
+
+```text
+ReferenceError: APP_VERSION is not defined
+```
+
+TypeScript не сообщает об ошибке, потому что декларация обещает компилятору существование переменной.
+
+Но среда выполнения ничего не знает о TypeScript-декларациях.
+
+Следовательно:
+
+* `declare` влияет на проверку типов;
+* `declare` не создаёт значение;
+* реализация должна существовать отдельно;
+* неправильная декларация может скрыть ошибку выполнения.
+
+---
+
+### 10. Откуда TypeScript получает типы для JavaScript-библиотеки `lodash`?
+
+Библиотека `lodash` написана на JavaScript.
+
+Её исполняемый код устанавливается командой:
+
+```bash
+npm install lodash
+```
+
+Типы для TypeScript устанавливаются отдельным пакетом:
+
+```bash
+npm install -D @types/lodash
+```
+
+После установки декларации находятся в папке:
+
+```text
+node_modules/
+    @types/
+        lodash/
+```
+
+Внутри находятся файлы `.d.ts`, которые описывают функции библиотеки.
+
+Например, благодаря декларациям TypeScript понимает вызов:
+
+```ts
+import {
+  chunk,
+} from "lodash";
+
+const groups =
+  chunk([1, 2, 3, 4], 2);
+```
+
+Тип результата:
+
+```ts
+number[][]
+```
+
+Неправильный аргумент вызывает ошибку:
 
 ```ts
 // Ошибка TypeScript:
-// const missingProduct:
-//   ExistingProduct = null;
+// chunk([1, 2, 3], "2");
 ```
 
-`NonNullable<T>` не делает свойства объекта обязательными.
+Таким образом:
 
-Он удаляет `null` и `undefined` только из самого переданного объединения.
-
----
-
-### 8. Чем `Parameters<T>` отличается от `ReturnType<T>`?
-
-`Parameters<T>` получает типы параметров функции.
-
-Результатом является кортеж.
-
-```ts
-function createProduct(
-  title: string,
-  price: number,
-): {
-  id: number;
-  title: string;
-  price: number;
-} {
-  return {
-    id: 1,
-    title,
-    price,
-  };
-}
-```
-
-Получим параметры:
-
-```ts
-type CreateProductParameters =
-  Parameters<
-    typeof createProduct
-  >;
-```
-
-Результат:
-
-```ts
-type CreateProductParameters = [
-  title: string,
-  price: number,
-];
-```
-
-`ReturnType<T>` получает тип возвращаемого значения.
-
-```ts
-type CreatedProduct =
-  ReturnType<
-    typeof createProduct
-  >;
-```
-
-Результат:
-
-```ts
-type CreatedProduct = {
-  id: number;
-  title: string;
-  price: number;
-};
-```
-
-Основное отличие:
-
-* `Parameters<T>` получает входные параметры;
-* `ReturnType<T>` получает результат функции.
-
----
-
-### 9. Для чего используются `ConstructorParameters<T>` и `InstanceType<T>`?
-
-`ConstructorParameters<T>` получает параметры конструктора класса.
-
-```ts
-class Product {
-  constructor(
-    public readonly id: number,
-    public title: string,
-  ) {}
-}
-```
-
-Получим параметры конструктора:
-
-```ts
-type ProductConstructorParameters =
-  ConstructorParameters<
-    typeof Product
-  >;
-```
-
-Результат:
-
-```ts
-type ProductConstructorParameters = [
-  id: number,
-  title: string,
-];
-```
-
-`InstanceType<T>` получает тип экземпляра, создаваемого конструктором.
-
-```ts
-type ProductInstance =
-  InstanceType<
-    typeof Product
-  >;
-```
-
-Результат:
-
-```ts
-type ProductInstance =
-  Product;
-```
-
-Важно различать:
-
-```ts
-typeof Product
-```
-
-Это тип конструктора класса.
-
-```ts
-Product
-```
-
-Это тип экземпляра класса.
-
----
-
-### 10. Чем `ReturnType<T>` отличается от `Awaited<ReturnType<T>>`?
-
-Рассмотрим асинхронную функцию:
-
-```ts
-async function loadProducts():
-  Promise<string[]> {
-  return [
-    "Клавиатура",
-    "Мышь",
-  ];
-}
-```
-
-`ReturnType` получает полный возвращаемый тип функции:
-
-```ts
-type LoadProductsReturn =
-  ReturnType<
-    typeof loadProducts
-  >;
-```
-
-Результат:
-
-```ts
-type LoadProductsReturn =
-  Promise<string[]>;
-```
-
-`Awaited` извлекает значение из `Promise`:
-
-```ts
-type LoadedProducts =
-  Awaited<
-    ReturnType<
-      typeof loadProducts
-    >
-  >;
-```
-
-Результат:
-
-```ts
-type LoadedProducts =
-  string[];
-```
-
-Разница:
-
-* `ReturnType` сохраняет `Promise`;
-* `Awaited<ReturnType<...>>` получает тип значения после выполнения `Promise`.
+* пакет `lodash` содержит реализацию;
+* пакет `@types/lodash` содержит декларации;
+* TypeScript объединяет реализацию библиотеки с информацией о её типах.
 
 ---
 
 # Практическое задание
 
-## Задание 1. Модель товара
+## Задание 1. Структура проекта
 
-Сначала создадим типы статуса и категории.
+Создадим структуру:
+
+```text
+typescript-course/
+    src/
+        app.ts
+        index.ts
+        domain/
+            product.ts
+            order.ts
+        services/
+            product-service.ts
+            order-service.ts
+    types/
+        environment.d.ts
+    package.json
+    tsconfig.json
+```
+
+Установим зависимости:
+
+```bash
+npm install lodash
+```
+
+```bash
+npm install -D typescript tsx @types/lodash
+```
+
+---
+
+## Задание 2. Модель товара
+
+Создадим файл:
+
+```text
+src/domain/product.ts
+```
+
+Опишем категорию товара:
 
 ```ts
-type ProductStatus =
-  | "draft"
-  | "published"
-  | "archived";
-
-type ProductCategory =
+export type ProductCategory =
   | "electronics"
   | "clothing"
   | "books";
 ```
 
-Теперь опишем модель товара:
+Теперь создадим модель:
 
 ```ts
-type Product = {
+export type Product = {
   readonly id: number;
   title: string;
-  description: string;
   price: number;
-  costPrice: number;
-  status: ProductStatus;
   category: ProductCategory;
-  imageUrl?: string;
-  readonly createdAt: Date;
+  available: boolean;
 };
 ```
 
-Пример товара:
+Создадим отдельный тип данных для функции:
 
 ```ts
-const keyboard: Product = {
-  id: 1,
-  title: "Клавиатура",
-  description:
-    "Механическая клавиатура",
-  price: 7500,
-  costPrice: 4800,
-  status: "published",
-  category: "electronics",
-  imageUrl:
-    "/images/keyboard.jpg",
-  createdAt: new Date(),
-};
-```
-
----
-
-## Задание 2. Товар для списка
-
-Для списка нужны только отдельные свойства товара.
-
-Используем `Pick`:
-
-```ts
-type ProductListItem =
-  Pick<
-    Product,
-    | "id"
-    | "title"
-    | "price"
-    | "status"
-    | "imageUrl"
-  >;
-```
-
-Получится тип:
-
-```ts
-type ProductListItemEquivalent = {
-  readonly id: number;
+export type CreateProductData = {
+  id: number;
   title: string;
   price: number;
-  status: ProductStatus;
-  imageUrl?: string;
+  category: ProductCategory;
+  available: boolean;
 };
 ```
 
-Пример объекта:
+Реализуем функцию:
 
 ```ts
-const productListItem:
-  ProductListItem = {
-    id: 1,
-    title: "Клавиатура",
-    price: 7500,
-    status: "published",
-    imageUrl:
-      "/images/keyboard.jpg",
-  };
-```
-
-Свойства `description`, `costPrice`, `category` и `createdAt` в этом типе отсутствуют.
-
----
-
-## Задание 3. Публичная модель товара
-
-В публичной модели нужно удалить внутреннюю себестоимость.
-
-Используем `Omit`:
-
-```ts
-type PublicProduct =
-  Omit<
-    Product,
-    "costPrice"
-  >;
-```
-
-Пример объекта:
-
-```ts
-const publicProduct:
-  PublicProduct = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    status: "published",
-    category: "electronics",
-    imageUrl:
-      "/images/keyboard.jpg",
-    createdAt: new Date(),
-  };
-```
-
-Передать `costPrice` нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const wrongPublicProduct:
-//   PublicProduct = {
-//     id: 1,
-//     title: "Клавиатура",
-//     description:
-//       "Механическая клавиатура",
-//     price: 7500,
-//     costPrice: 4800,
-//     status: "published",
-//     category: "electronics",
-//     createdAt: new Date(),
-//   };
-```
-
----
-
-## Задание 4. Команда добавления товара
-
-При создании товара клиент не передаёт:
-
-* `id`;
-* `createdAt`;
-* `status`.
-
-Удалим эти свойства:
-
-```ts
-type CreateProductCommand =
-  Omit<
-    Product,
-    | "id"
-    | "createdAt"
-    | "status"
-  >;
-```
-
-Пример команды:
-
-```ts
-const createProductCommand:
-  CreateProductCommand = {
-    title: "Мышь",
-    description:
-      "Беспроводная мышь",
-    price: 3200,
-    costPrice: 1900,
-    category: "electronics",
-    imageUrl:
-      "/images/mouse.jpg",
-  };
-```
-
-Следующая команда вызовет ошибку, потому что `id` отсутствует в `CreateProductCommand`:
-
-```ts
-// Ошибка TypeScript:
-// const wrongCreateCommand:
-//   CreateProductCommand = {
-//     id: 2,
-//     title: "Мышь",
-//     description:
-//       "Беспроводная мышь",
-//     price: 3200,
-//     costPrice: 1900,
-//     category: "electronics",
-//   };
-```
-
----
-
-## Задание 5. Команда обновления товара
-
-Сначала выберем разрешённые для изменения свойства:
-
-```ts
-type EditableProductFields =
-  Pick<
-    Product,
-    | "title"
-    | "description"
-    | "price"
-    | "category"
-    | "imageUrl"
-  >;
-```
-
-Теперь сделаем их необязательными:
-
-```ts
-type ProductUpdatePatch =
-  Partial<
-    EditableProductFields
-  >;
-```
-
-Добавим обязательный идентификатор товара:
-
-```ts
-type UpdateProductCommand = {
-  productId: Product["id"];
-} & ProductUpdatePatch;
-```
-
-Пример изменения названия:
-
-```ts
-const updateTitle:
-  UpdateProductCommand = {
-    productId: 1,
-    title:
-      "Игровая клавиатура",
-  };
-```
-
-Пример изменения цены:
-
-```ts
-const updatePrice:
-  UpdateProductCommand = {
-    productId: 1,
-    price: 6900,
-  };
-```
-
-Пример изменения нескольких полей:
-
-```ts
-const updateSeveralFields:
-  UpdateProductCommand = {
-    productId: 1,
-    title:
-      "Компактная клавиатура",
-    description:
-      "Механическая клавиатура без цифрового блока",
-    price: 7100,
-    category: "electronics",
-    imageUrl:
-      "/images/compact-keyboard.jpg",
-  };
-```
-
-Попытка изменить `costPrice` вызовет ошибку:
-
-```ts
-// Ошибка TypeScript:
-// const wrongCostPriceUpdate:
-//   UpdateProductCommand = {
-//     productId: 1,
-//     costPrice: 3000,
-//   };
-```
-
-Изменить статус тоже нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const wrongStatusUpdate:
-//   UpdateProductCommand = {
-//     productId: 1,
-//     status: "archived",
-//   };
-```
-
----
-
-## Задание 6. Полностью заполненная модель
-
-Применим `Required`:
-
-```ts
-type CompleteProduct =
-  Required<Product>;
-```
-
-Теперь `imageUrl` является обязательным свойством:
-
-```ts
-const completeProduct:
-  CompleteProduct = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    costPrice: 4800,
-    status: "published",
-    category: "electronics",
-    imageUrl:
-      "/images/keyboard.jpg",
-    createdAt: new Date(),
-  };
-```
-
-Пропустить `imageUrl` нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const incompleteProduct:
-//   CompleteProduct = {
-//     id: 1,
-//     title: "Клавиатура",
-//     description:
-//       "Механическая клавиатура",
-//     price: 7500,
-//     costPrice: 4800,
-//     status: "published",
-//     category: "electronics",
-//     createdAt: new Date(),
-//   };
-```
-
-Рассмотрим отдельный пример:
-
-```ts
-type ProductWithUndefinedImage = {
-  imageUrl?:
-    string | undefined;
-};
-```
-
-Применим `Required`:
-
-```ts
-type CompleteImage =
-  Required<
-    ProductWithUndefinedImage
-  >;
-```
-
-Свойство становится обязательным:
-
-```ts
-const image:
-  CompleteImage = {
-    imageUrl: undefined,
-  };
-```
-
-Это допустимо, потому что `Required` убирает только знак `?`.
-
-Явно указанный `undefined` остаётся частью типа значения.
-
----
-
-## Задание 7. Модель только для чтения
-
-Используем `Readonly`:
-
-```ts
-type ProductSnapshot =
-  Readonly<Product>;
-```
-
-Создадим снимок товара:
-
-```ts
-const productSnapshot:
-  ProductSnapshot = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    costPrice: 4800,
-    status: "published",
-    category: "electronics",
-    imageUrl:
-      "/images/keyboard.jpg",
-    createdAt: new Date(),
-  };
-```
-
-Изменять свойства нельзя:
-
-```ts
-// Ошибка TypeScript:
-// productSnapshot.title =
-//   "Новая клавиатура";
-```
-
-```ts
-// Ошибка TypeScript:
-// productSnapshot.price =
-//   8000;
-```
-
-```ts
-// Ошибка TypeScript:
-// productSnapshot.status =
-//   "archived";
-```
-
-Важно помнить, что `Readonly` работает только на верхнем уровне объекта.
-
----
-
-## Задание 8. Подписи для статусов
-
-Тип статуса можно получить непосредственно из `Product`:
-
-```ts
-type ProductStatusFromModel =
-  Product["status"];
-```
-
-Он эквивалентен:
-
-```ts
-type ProductStatusFromModel =
-  | "draft"
-  | "published"
-  | "archived";
-```
-
-Создадим карту подписей:
-
-```ts
-const productStatusLabels:
-  Record<
-    ProductStatusFromModel,
-    string
-  > = {
-    draft: "Черновик",
-    published:
-      "Опубликован",
-    archived: "В архиве",
-  };
-```
-
-Если пропустить ключ, TypeScript покажет ошибку:
-
-```ts
-// Ошибка TypeScript:
-// const incompleteStatusLabels:
-//   Record<
-//     ProductStatusFromModel,
-//     string
-//   > = {
-//     draft: "Черновик",
-//     published:
-//       "Опубликован",
-//   };
-```
-
-Неизвестный ключ тоже запрещён:
-
-```ts
-// Ошибка TypeScript:
-// const wrongStatusLabels:
-//   Record<
-//     ProductStatusFromModel,
-//     string
-//   > = {
-//     draft: "Черновик",
-//     published:
-//       "Опубликован",
-//     archived: "В архиве",
-//     deleted: "Удалён",
-//   };
-```
-
----
-
-## Задание 9. Настройки отображения категорий
-
-Получим тип категории:
-
-```ts
-type ProductCategoryFromModel =
-  Product["category"];
-```
-
-Опишем значение настройки:
-
-```ts
-type CategorySetting = {
-  title: string;
-  icon: string;
-};
-```
-
-Теперь создадим словарь:
-
-```ts
-type CategorySettings =
-  Record<
-    ProductCategoryFromModel,
-    CategorySetting
-  >;
-```
-
-Реализация:
-
-```ts
-const categorySettings:
-  CategorySettings = {
-    electronics: {
-      title: "Электроника",
-      icon: "monitor",
-    },
-    clothing: {
-      title: "Одежда",
-      icon: "shirt",
-    },
-    books: {
-      title: "Книги",
-      icon: "book",
-    },
-  };
-```
-
-TypeScript требует настройку для каждой категории.
-
----
-
-## Задание 10. Статусы через `Exclude` и `Extract`
-
-Удалим статус `"archived"`:
-
-```ts
-type VisibleProductStatus =
-  Exclude<
-    ProductStatus,
-    "archived"
-  >;
-```
-
-Результат:
-
-```ts
-type VisibleProductStatus =
-  | "draft"
-  | "published";
-```
-
-Проверка:
-
-```ts
-const draftStatus:
-  VisibleProductStatus =
-    "draft";
-
-const publishedStatus:
-  VisibleProductStatus =
-    "published";
-```
-
-Архивный статус использовать нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const archivedVisibleStatus:
-//   VisibleProductStatus =
-//     "archived";
-```
-
-Теперь оставим только финальные статусы:
-
-```ts
-type FinalProductStatus =
-  Extract<
-    ProductStatus,
-    | "published"
-    | "archived"
-  >;
-```
-
-Результат:
-
-```ts
-type FinalProductStatus =
-  | "published"
-  | "archived";
-```
-
-Проверка:
-
-```ts
-const finalPublished:
-  FinalProductStatus =
-    "published";
-
-const finalArchived:
-  FinalProductStatus =
-    "archived";
-```
-
-`"draft"` не входит в этот тип:
-
-```ts
-// Ошибка TypeScript:
-// const wrongFinalStatus:
-//   FinalProductStatus =
-//     "draft";
-```
-
----
-
-## Задание 11. Команда публикации товара
-
-Тип идентификатора получаем из модели:
-
-```ts
-type ProductId =
-  Product["id"];
-```
-
-Из статусов удаляем `"draft"`:
-
-```ts
-type PublishableStatus =
-  Exclude<
-    Product["status"],
-    "draft"
-  >;
-```
-
-Создаём команду:
-
-```ts
-type PublishProductCommand = {
-  productId: ProductId;
-  status: PublishableStatus;
-};
-```
-
-Правильная команда:
-
-```ts
-const publishCommand:
-  PublishProductCommand = {
-    productId: 1,
-    status: "published",
-  };
-```
-
-Архивирование тоже допустимо:
-
-```ts
-const archiveCommand:
-  PublishProductCommand = {
-    productId: 1,
-    status: "archived",
-  };
-```
-
-Вернуть товар в статус черновика нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const draftCommand:
-//   PublishProductCommand = {
-//     productId: 1,
-//     status: "draft",
-//   };
-```
-
----
-
-## Задание 12. Удаление `null` и `undefined`
-
-Исходный результат поиска:
-
-```ts
-type ProductSearchResult =
-  | Product
-  | null
-  | undefined;
-```
-
-Удалим пустые значения:
-
-```ts
-type ExistingProduct =
-  NonNullable<
-    ProductSearchResult
-  >;
-```
-
-Результат:
-
-```ts
-type ExistingProduct =
-  Product;
-```
-
-Правильное значение:
-
-```ts
-const existingProduct:
-  ExistingProduct = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    costPrice: 4800,
-    status: "published",
-    category: "electronics",
-    createdAt: new Date(),
-  };
-```
-
-`null` использовать нельзя:
-
-```ts
-// Ошибка TypeScript:
-// const nullProduct:
-//   ExistingProduct = null;
-```
-
-`undefined` тоже запрещён:
-
-```ts
-// Ошибка TypeScript:
-// const undefinedProduct:
-//   ExistingProduct =
-//     undefined;
-```
-
----
-
-## Задание 13. Типы функции создания товара
-
-Создадим функцию:
-
-```ts
-function createProduct(
-  command: CreateProductCommand,
+export function createProduct(
+  data: CreateProductData,
 ): Product {
   return {
-    id: Date.now(),
-    title: command.title,
-    description:
-      command.description,
-    price: command.price,
-    costPrice:
-      command.costPrice,
-    status: "draft",
-    category:
-      command.category,
-    imageUrl:
-      command.imageUrl,
+    id: data.id,
+    title: data.title,
+    price: data.price,
+    category: data.category,
+    available: data.available,
+  };
+}
+```
+
+Добавим вспомогательную функцию:
+
+```ts
+export function validateProductPrice(
+  price: number,
+): boolean {
+  return price > 0;
+}
+```
+
+Пока не будем добавлять её в публичную точку входа.
+
+Полный файл:
+
+```ts
+export type ProductCategory =
+  | "electronics"
+  | "clothing"
+  | "books";
+
+export type Product = {
+  readonly id: number;
+  title: string;
+  price: number;
+  category: ProductCategory;
+  available: boolean;
+};
+
+export type CreateProductData = {
+  id: number;
+  title: string;
+  price: number;
+  category: ProductCategory;
+  available: boolean;
+};
+
+export function createProduct(
+  data: CreateProductData,
+): Product {
+  return {
+    id: data.id,
+    title: data.title,
+    price: data.price,
+    category: data.category,
+    available: data.available,
+  };
+}
+
+export function validateProductPrice(
+  price: number,
+): boolean {
+  return price > 0;
+}
+```
+
+---
+
+## Задание 3. Модель заказа
+
+Создадим файл:
+
+```text
+src/domain/order.ts
+```
+
+Импортируем модель товара:
+
+```ts
+import {
+  type Product,
+} from "./product.js";
+```
+
+Создадим позицию заказа:
+
+```ts
+export type OrderItem = {
+  product: Product;
+  quantity: number;
+};
+```
+
+Создадим заказ:
+
+```ts
+export type Order = {
+  readonly id: string;
+  items: OrderItem[];
+  createdAt: Date;
+};
+```
+
+Реализуем функцию создания заказа:
+
+```ts
+export function createOrder(
+  id: string,
+  items: OrderItem[],
+): Order {
+  return {
+    id,
+    items,
     createdAt: new Date(),
   };
 }
 ```
 
-Получим параметры функции:
+Полный файл:
 
 ```ts
-type CreateProductParameters =
-  Parameters<
-    typeof createProduct
-  >;
-```
+import {
+  type Product,
+} from "./product.js";
 
-Результат является кортежем:
+export type OrderItem = {
+  product: Product;
+  quantity: number;
+};
 
-```ts
-type CreateProductParametersEquivalent = [
-  command:
-    CreateProductCommand,
-];
-```
+export type Order = {
+  readonly id: string;
+  items: OrderItem[];
+  createdAt: Date;
+};
 
-Создадим значение этого типа:
-
-```ts
-const createArguments:
-  CreateProductParameters = [
-    {
-      title: "Мышь",
-      description:
-        "Беспроводная мышь",
-      price: 3200,
-      costPrice: 1900,
-      category:
-        "electronics",
-    },
-  ];
-```
-
-Теперь получим возвращаемый тип:
-
-```ts
-type CreatedProduct =
-  ReturnType<
-    typeof createProduct
-  >;
-```
-
-Он эквивалентен `Product`.
-
-```ts
-const createdProduct:
-  CreatedProduct =
-    createProduct(
-      createArguments[0],
-    );
-```
-
----
-
-## Задание 14. Функция-обёртка
-
-Создадим универсальную функцию:
-
-```ts
-function withLogging<
-  TArguments extends unknown[],
-  TResult,
->(
-  fn: (
-    ...args: TArguments
-  ) => TResult,
-): (
-  ...args: TArguments
-) => TResult {
-  return (
-    ...args: TArguments
-  ): TResult => {
-    console.log(
-      "Аргументы:",
-      args,
-    );
-
-    const result =
-      fn(...args);
-
-    console.log(
-      "Результат:",
-      result,
-    );
-
-    return result;
+export function createOrder(
+  id: string,
+  items: OrderItem[],
+): Order {
+  return {
+    id,
+    items,
+    createdAt: new Date(),
   };
 }
 ```
 
-Применим её к `createProduct`:
-
-```ts
-const loggedCreateProduct =
-  withLogging(createProduct);
-```
-
-Вызов:
-
-```ts
-const loggedProduct =
-  loggedCreateProduct({
-    title: "Монитор",
-    description:
-      "Монитор с диагональю 27 дюймов",
-    price: 28000,
-    costPrice: 21000,
-    category: "electronics",
-  });
-```
-
-Тип `loggedProduct`:
-
-```ts
-Product
-```
-
-TypeScript сохраняет сигнатуру исходной функции.
-
-Неправильная команда вызовет ошибку:
-
-```ts
-// Ошибка TypeScript:
-// loggedCreateProduct({
-//   title: "Монитор",
-//   price: "28000",
-// });
-```
-
 ---
 
-## Задание 15. Типы конструктора
+## Задание 4. Сервис товаров
+
+Создадим файл:
+
+```text
+src/services/product-service.ts
+```
+
+Импортируем тип товара:
+
+```ts
+import {
+  type Product,
+} from "../domain/product.js";
+```
 
 Создадим класс:
 
 ```ts
-class ProductEntity {
+export default class ProductService {
   constructor(
-    public readonly id: number,
-    public title: string,
-    public price: number,
-    public status:
-      ProductStatus,
+    private readonly products:
+      Product[],
   ) {}
+
+  getAll(): Product[] {
+    return this.products;
+  }
+
+  findById(
+    id: Product["id"],
+  ): Product | undefined {
+    return this.products.find(
+      (product) =>
+        product.id === id,
+    );
+  }
+
+  getAvailable(): Product[] {
+    return this.products.filter(
+      (product) =>
+        product.available,
+    );
+  }
 }
 ```
 
-Получим параметры конструктора:
+Метод `getAll` возвращает все товары.
+
+Метод `findById` возвращает найденный товар или `undefined`.
+
+Метод `getAvailable` возвращает только доступные товары.
+
+---
+
+## Задание 5. Использование `default export`
+
+Класс экспортируется по умолчанию:
 
 ```ts
-type ProductEntityConstructorParameters =
-  ConstructorParameters<
-    typeof ProductEntity
-  >;
+export default class ProductService
 ```
 
-Результат:
+Поэтому при прямом импорте имя можно выбрать самостоятельно:
 
 ```ts
-type ProductEntityConstructorParametersEquivalent = [
-  id: number,
-  title: string,
-  price: number,
-  status: ProductStatus,
+import StoreProductService
+  from "./services/product-service.js";
+```
+
+Создать экземпляр можно так:
+
+```ts
+const productService =
+  new StoreProductService(
+    products,
+  );
+```
+
+Имя `StoreProductService` отсутствует в исходном модуле.
+
+Оно выбрано при импорте `default export`.
+
+Позже приложение будет переведено на импорт из `index.ts`.
+
+---
+
+## Задание 6. Сервис заказов
+
+Создадим файл:
+
+```text
+src/services/order-service.ts
+```
+
+Импортируем тип заказа:
+
+```ts
+import {
+  type Order,
+} from "../domain/order.js";
+```
+
+Создадим класс:
+
+```ts
+export class OrderService {
+  calculateTotal(
+    order: Order,
+  ): number {
+    return order.items.reduce(
+      (total, item) =>
+        total +
+        item.product.price *
+          item.quantity,
+      0,
+    );
+  }
+}
+```
+
+Метод проходит по позициям заказа и вычисляет сумму:
+
+```ts
+item.product.price
+```
+
+умноженную на:
+
+```ts
+item.quantity
+```
+
+---
+
+## Задание 7. Публичная точка входа
+
+Создадим файл:
+
+```text
+src/index.ts
+```
+
+Переэкспортируем типы товара:
+
+```ts
+export type {
+  CreateProductData,
+  Product,
+  ProductCategory,
+} from "./domain/product.js";
+```
+
+Переэкспортируем функцию создания товара:
+
+```ts
+export {
+  createProduct,
+} from "./domain/product.js";
+```
+
+Функцию `validateProductPrice` пока не экспортируем.
+
+Переэкспортируем сущности заказа:
+
+```ts
+export type {
+  Order,
+  OrderItem,
+} from "./domain/order.js";
+
+export {
+  createOrder,
+} from "./domain/order.js";
+```
+
+Переэкспортируем `default export` под именем:
+
+```ts
+export {
+  default as ProductService,
+} from "./services/product-service.js";
+```
+
+Переэкспортируем сервис заказов:
+
+```ts
+export {
+  OrderService,
+} from "./services/order-service.js";
+```
+
+Полный файл:
+
+```ts
+export {
+  createProduct,
+} from "./domain/product.js";
+
+export type {
+  CreateProductData,
+  Product,
+  ProductCategory,
+} from "./domain/product.js";
+
+export {
+  createOrder,
+} from "./domain/order.js";
+
+export type {
+  Order,
+  OrderItem,
+} from "./domain/order.js";
+
+export {
+  default as ProductService,
+} from "./services/product-service.js";
+
+export {
+  OrderService,
+} from "./services/order-service.js";
+```
+
+---
+
+## Задание 8. Импорт через публичную точку входа
+
+В файле:
+
+```text
+src/app.ts
+```
+
+все сущности импортируем из:
+
+```ts
+"./index.js"
+```
+
+Импорт:
+
+```ts
+import {
+  createOrder,
+  createProduct,
+  OrderService,
+  ProductService,
+  type OrderItem,
+  type Product,
+} from "./index.js";
+```
+
+Теперь приложение не зависит от расположения файлов:
+
+```text
+domain/
+```
+
+и:
+
+```text
+services/
+```
+
+Внешний код знает только о публичной точке входа.
+
+---
+
+## Задание 9. Тестовые товары
+
+Создадим товар `keyboard`:
+
+```ts
+const keyboard: Product =
+  createProduct({
+    id: 1,
+    title: "Клавиатура",
+    price: 7500,
+    category: "electronics",
+    available: true,
+  });
+```
+
+Создадим товар `mouse`:
+
+```ts
+const mouse: Product =
+  createProduct({
+    id: 2,
+    title: "Мышь",
+    price: 3200,
+    category: "electronics",
+    available: true,
+  });
+```
+
+Создадим книгу:
+
+```ts
+const book: Product =
+  createProduct({
+    id: 3,
+    title:
+      "Изучаем TypeScript",
+    price: 1800,
+    category: "books",
+    available: true,
+  });
+```
+
+Создадим недоступную футболку:
+
+```ts
+const tshirt: Product =
+  createProduct({
+    id: 4,
+    title:
+      "Футболка TypeScript",
+    price: 2400,
+    category: "clothing",
+    available: false,
+  });
+```
+
+Объединим товары в массив:
+
+```ts
+const products: Product[] = [
+  keyboard,
+  mouse,
+  book,
+  tshirt,
 ];
 ```
 
-Создадим переменную с аргументами:
-
-```ts
-const productEntityArguments:
-  ProductEntityConstructorParameters = [
-    1,
-    "Клавиатура",
-    7500,
-    "published",
-  ];
-```
-
-Получим тип экземпляра:
-
-```ts
-type ProductEntityInstance =
-  InstanceType<
-    typeof ProductEntity
-  >;
-```
-
-Создадим экземпляр:
-
-```ts
-const productEntity:
-  ProductEntityInstance =
-    new ProductEntity(
-      ...productEntityArguments,
-    );
-```
-
-Тип `ProductEntityInstance` эквивалентен `ProductEntity`.
-
 ---
 
-## Задание 16. Результат асинхронной функции
+## Задание 10. Создание заказа
 
-Создадим функцию загрузки товаров:
+Создадим позиции заказа:
 
 ```ts
-async function loadProducts():
-  Promise<Product[]> {
-  return [
-    {
-      id: 1,
-      title: "Клавиатура",
-      description:
-        "Механическая клавиатура",
-      price: 7500,
-      costPrice: 4800,
-      status: "published",
-      category:
-        "electronics",
-      createdAt: new Date(),
-    },
-    {
-      id: 2,
-      title: "Книга",
-      description:
-        "Учебник по TypeScript",
-      price: 1800,
-      costPrice: 900,
-      status: "published",
-      category: "books",
-      createdAt: new Date(),
-    },
-  ];
-}
+const items: OrderItem[] = [
+  {
+    product: keyboard,
+    quantity: 1,
+  },
+  {
+    product: mouse,
+    quantity: 2,
+  },
+  {
+    product: book,
+    quantity: 3,
+  },
+];
 ```
 
-Получим полный возвращаемый тип:
+Создадим заказ:
 
 ```ts
-type LoadProductsReturn =
-  ReturnType<
-    typeof loadProducts
-  >;
+const order = createOrder(
+  "order-001",
+  items,
+);
 ```
 
-Результат:
+Создадим сервис:
 
 ```ts
-type LoadProductsReturn =
-  Promise<Product[]>;
+const orderService =
+  new OrderService();
 ```
 
-Теперь извлечём внутреннее значение:
+Вычислим стоимость:
 
 ```ts
-type LoadedProducts =
-  Awaited<
-    ReturnType<
-      typeof loadProducts
-    >
-  >;
+const total =
+  orderService.calculateTotal(
+    order,
+  );
 ```
 
-Результат:
+Расчёт:
 
-```ts
-type LoadedProducts =
-  Product[];
+```text
+7500 × 1 = 7500
+3200 × 2 = 6400
+1800 × 3 = 5400
 ```
 
-Проверка:
+Итог:
+
+```text
+19300
+```
+
+Создадим сервис товаров:
 
 ```ts
-async function runLoadExample():
-  Promise<void> {
-  const products:
-    LoadedProducts =
-      await loadProducts();
+const productService =
+  new ProductService(products);
+```
 
-  console.log(products);
-}
+Получим доступные товары:
+
+```ts
+const availableProducts =
+  productService.getAvailable();
+```
+
+Товар `tshirt` в результат не попадёт, потому что:
+
+```ts
+available: false
 ```
 
 ---
 
-## Задание 17. Состояние каталога
+## Задание 11. Подключение `lodash`
 
-Опишем состояние:
+Установим библиотеку:
+
+```bash
+npm install lodash
+```
+
+Установим декларации:
+
+```bash
+npm install -D @types/lodash
+```
+
+Импортируем функцию:
 
 ```ts
-type CatalogState = {
-  products: Product[];
-  selectedProduct:
-    Product | null;
-  loading: boolean;
-  error: string | null;
+import {
+  chunk,
+} from "lodash";
+```
+
+Разделим товары на группы по два:
+
+```ts
+const productGroups =
+  chunk(products, 2);
+```
+
+Результат имеет тип:
+
+```ts
+Product[][]
+```
+
+При четырёх товарах получится две группы:
+
+```ts
+[
+  [
+    keyboard,
+    mouse,
+  ],
+  [
+    book,
+    tshirt,
+  ],
+]
+```
+
+---
+
+## Задание 12. Проверка типизации `lodash`
+
+Создадим массив:
+
+```ts
+const numbers = [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+];
+```
+
+Разделим его на группы:
+
+```ts
+const numberGroups =
+  chunk(numbers, 3);
+```
+
+TypeScript выводит тип:
+
+```ts
+number[][]
+```
+
+Можно проверить его явно:
+
+```ts
+const checkedNumberGroups:
+  number[][] = numberGroups;
+```
+
+Неправильный вызов:
+
+```ts
+// Ошибка TypeScript:
+// chunk(numbers, "3");
+```
+
+Второй параметр должен иметь тип:
+
+```ts
+number
+```
+
+Декларации из `@types/lodash` позволяют TypeScript обнаружить эту ошибку.
+
+---
+
+## Задание 13. Настройка генерации деклараций
+
+Файл:
+
+```text
+tsconfig.json
+```
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "types/**/*.d.ts"
+  ]
+}
+```
+
+Параметр:
+
+```json
+"declaration": true
+```
+
+создаёт `.d.ts`.
+
+Параметр:
+
+```json
+"declarationMap": true
+```
+
+создаёт `.d.ts.map`.
+
+Папка `types` добавлена в `include`, чтобы TypeScript видел пользовательские декларации.
+
+---
+
+## Задание 14. Генерация деклараций
+
+Запустим компилятор:
+
+```bash
+npx tsc
+```
+
+После компиляции получится структура:
+
+```text
+dist/
+    app.js
+    app.js.map
+    app.d.ts
+    app.d.ts.map
+    index.js
+    index.js.map
+    index.d.ts
+    index.d.ts.map
+    domain/
+        product.js
+        product.js.map
+        product.d.ts
+        product.d.ts.map
+        order.js
+        order.js.map
+        order.d.ts
+        order.d.ts.map
+    services/
+        product-service.js
+        product-service.js.map
+        product-service.d.ts
+        product-service.d.ts.map
+        order-service.js
+        order-service.js.map
+        order-service.d.ts
+        order-service.d.ts.map
+```
+
+Точный набор файлов зависит от настроек `sourceMap` и содержимого проекта.
+
+---
+
+## Задание 15. Изучение созданных `.d.ts`
+
+Файл:
+
+```text
+dist/index.d.ts
+```
+
+будет содержать переэкспорты:
+
+```ts
+export {
+  createProduct,
+} from "./domain/product.js";
+
+export type {
+  CreateProductData,
+  Product,
+  ProductCategory,
+} from "./domain/product.js";
+
+export {
+  createOrder,
+} from "./domain/order.js";
+
+export type {
+  Order,
+  OrderItem,
+} from "./domain/order.js";
+
+export {
+  default as ProductService,
+} from "./services/product-service.js";
+
+export {
+  OrderService,
+} from "./services/order-service.js";
+```
+
+Файл:
+
+```text
+dist/domain/product.d.ts
+```
+
+будет выглядеть примерно так:
+
+```ts
+export type ProductCategory =
+  | "electronics"
+  | "clothing"
+  | "books";
+
+export type Product = {
+  readonly id: number;
+  title: string;
+  price: number;
+  category: ProductCategory;
+  available: boolean;
 };
+
+export type CreateProductData = {
+  id: number;
+  title: string;
+  price: number;
+  category: ProductCategory;
+  available: boolean;
+};
+
+export declare function createProduct(
+  data: CreateProductData,
+): Product;
+
+export declare function validateProductPrice(
+  price: number,
+): boolean;
 ```
 
-Создадим тип частичного обновления:
+Ответы на вопросы:
 
 ```ts
-type CatalogStatePatch =
-  Partial<CatalogState>;
+// 1. Есть ли в .d.ts реализация
+// функции createProduct?
+//
+// Нет. Сохраняется только сигнатура.
 ```
-
-Теперь реализуем функцию:
 
 ```ts
-function updateCatalogState(
-  current: CatalogState,
-  patch: CatalogStatePatch,
-): CatalogState {
-  return {
-    ...current,
-    ...patch,
-  };
-}
+// 2. Сохранился ли тип
+// возвращаемого значения?
+//
+// Да. Функция возвращает Product.
 ```
-
-Исходное состояние:
 
 ```ts
-const initialCatalogState:
-  CatalogState = {
-    products: [],
-    selectedProduct: null,
-    loading: false,
-    error: null,
-  };
+// 3. Сохранились ли
+// экспортируемые типы?
+//
+// Да. Product, ProductCategory
+// и CreateProductData присутствуют
+// в декларации.
 ```
-
-Начало загрузки:
 
 ```ts
-const loadingCatalogState =
-  updateCatalogState(
-    initialCatalogState,
-    {
-      loading: true,
-    },
-  );
+// 4. Содержится ли в .d.ts
+// исполняемый JavaScript-код?
+//
+// Нет. Файл содержит только
+// описание публичного API.
 ```
-
-Завершение загрузки:
-
-```ts
-const loadedCatalogState =
-  updateCatalogState(
-    loadingCatalogState,
-    {
-      products: [
-        keyboard,
-      ],
-      loading: false,
-    },
-  );
-```
-
-Выбор товара:
-
-```ts
-const selectedCatalogState =
-  updateCatalogState(
-    loadedCatalogState,
-    {
-      selectedProduct:
-        keyboard,
-    },
-  );
-```
-
-Функция не изменяет исходный объект.
-
-Она возвращает новый объект состояния.
 
 ---
 
-## Задание 18. Добавление нового статуса
+## Задание 16. Проверка публичной точки входа
 
-Расширим тип:
+Функция объявлена и экспортирована в:
 
-```ts
-type ExtendedProductStatus =
-  | "draft"
-  | "published"
-  | "archived"
-  | "outOfStock";
-```
-
-Если заменить исходный `ProductStatus` на этот тип, автоматически обновятся:
-
-```ts
-Product["status"]
+```text
+src/domain/product.ts
 ```
 
 ```ts
-VisibleProductStatus
+export function validateProductPrice(
+  price: number,
+): boolean {
+  return price > 0;
+}
+```
+
+Но в `src/index.ts` её пока нет.
+
+Поэтому импорт из публичной точки входа вызовет ошибку:
+
+```ts
+// Ошибка TypeScript:
+// import {
+//   validateProductPrice,
+// } from "./index.js";
+```
+
+Добавим функцию в `src/index.ts`:
+
+```ts
+export {
+  createProduct,
+  validateProductPrice,
+} from "./domain/product.js";
+```
+
+Теперь импорт разрешён:
+
+```ts
+import {
+  validateProductPrice,
+} from "./index.js";
+```
+
+Использование:
+
+```ts
+console.log(
+  validateProductPrice(7500),
+);
+```
+
+Результат:
+
+```text
+true
+```
+
+Это показывает, что экспорт из внутреннего файла и публикация через `index.ts` — разные действия.
+
+---
+
+## Задание 17. Использование `declare`
+
+Создадим файл:
+
+```text
+types/environment.d.ts
+```
+
+Добавим объявление:
+
+```ts
+declare const APP_VERSION:
+  string;
+```
+
+Теперь в `src/app.ts` TypeScript понимает:
+
+```ts
+APP_VERSION
+```
+
+Например:
+
+```ts
+const version: string =
+  APP_VERSION;
+```
+
+TypeScript не сообщает об ошибке типа.
+
+Ответ:
+
+```ts
+// Создаёт ли declare реальное
+// значение APP_VERSION
+// во время выполнения?
+//
+// Нет. declare только сообщает
+// TypeScript, что такое значение
+// должно существовать.
+```
+
+Чтобы основной пример запускался, обращение к переменной оставим закомментированным:
+
+```ts
+// console.log(APP_VERSION);
+```
+
+---
+
+## Задание 18. Разница между объявлением и реализацией
+
+Временно добавим:
+
+```ts
+console.log(APP_VERSION);
+```
+
+Запустим:
+
+```bash
+npx tsx src/app.ts
+```
+
+Во время выполнения возникнет ошибка:
+
+```text
+ReferenceError:
+APP_VERSION is not defined
+```
+
+Объяснение:
+
+```ts
+// TypeScript не показывал ошибку,
+// потому что файл environment.d.ts
+// объявил глобальную переменную
+// APP_VERSION с типом string.
 ```
 
 ```ts
-PublishableStatus
+// Ошибка появилась при запуске,
+// потому что среда выполнения
+// не создала реальную переменную.
 ```
 
 ```ts
-FinalProductStatus
+// declare является описанием,
+// а не реализацией.
 ```
+
+После проверки строку необходимо закомментировать:
 
 ```ts
-PublishProductCommand
+// console.log(APP_VERSION);
 ```
 
-Объект, объявленный через `Record`, потребует новое значение:
+---
 
-```ts
-const extendedStatusLabels:
-  Record<
-    ExtendedProductStatus,
-    string
-  > = {
-    draft: "Черновик",
-    published:
-      "Опубликован",
-    archived: "В архиве",
-    outOfStock:
-      "Нет в наличии",
-  };
-```
+## Задание 19. Итоговая проверка
 
-Если не добавить `outOfStock`, TypeScript покажет ошибку.
+В выполненном проекте:
 
-Это демонстрирует преимущество `Record`.
-
-При расширении union компилятор помогает найти все исчерпывающие таблицы, которые необходимо обновить.
+* `Product` и `Order` находятся в отдельных модулях;
+* типы и функции используют именованные экспорты;
+* `ProductService` использует `default export`;
+* `index.ts` является публичной точкой входа;
+* `app.ts` импортирует сущности библиотеки из `index.ts`;
+* `lodash` установлен вместе с `@types/lodash`;
+* `chunk` сохраняет тип элементов массива;
+* `npx tsc` создаёт `.js` и `.d.ts`;
+* декларации содержат сигнатуры, но не реализацию;
+* `declare` сообщает TypeScript о внешней сущности;
+* `declare` не создаёт значение во время выполнения.
 
 ---
 
 # Полный код решения
 
+## `src/domain/product.ts`
+
 ```ts
-export {};
-
-type ProductStatus =
-  | "draft"
-  | "published"
-  | "archived";
-
-type ProductCategory =
+export type ProductCategory =
   | "electronics"
   | "clothing"
   | "books";
 
-type Product = {
+export type Product = {
   readonly id: number;
   title: string;
-  description: string;
   price: number;
-  costPrice: number;
-  status: ProductStatus;
   category: ProductCategory;
-  imageUrl?: string;
-  readonly createdAt: Date;
+  available: boolean;
 };
 
-const keyboard: Product = {
-  id: 1,
-  title: "Клавиатура",
-  description:
-    "Механическая клавиатура",
-  price: 7500,
-  costPrice: 4800,
-  status: "published",
-  category: "electronics",
-  imageUrl:
-    "/images/keyboard.jpg",
-  createdAt: new Date(),
-};
-
-type ProductListItem =
-  Pick<
-    Product,
-    | "id"
-    | "title"
-    | "price"
-    | "status"
-    | "imageUrl"
-  >;
-
-const productListItem:
-  ProductListItem = {
-    id: 1,
-    title: "Клавиатура",
-    price: 7500,
-    status: "published",
-    imageUrl:
-      "/images/keyboard.jpg",
-  };
-
-type PublicProduct =
-  Omit<
-    Product,
-    "costPrice"
-  >;
-
-const publicProduct:
-  PublicProduct = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    status: "published",
-    category: "electronics",
-    imageUrl:
-      "/images/keyboard.jpg",
-    createdAt: new Date(),
-  };
-
-type CreateProductCommand =
-  Omit<
-    Product,
-    | "id"
-    | "createdAt"
-    | "status"
-  >;
-
-const createProductCommand:
-  CreateProductCommand = {
-    title: "Мышь",
-    description:
-      "Беспроводная мышь",
-    price: 3200,
-    costPrice: 1900,
-    category: "electronics",
-    imageUrl:
-      "/images/mouse.jpg",
-  };
-
-type EditableProductFields =
-  Pick<
-    Product,
-    | "title"
-    | "description"
-    | "price"
-    | "category"
-    | "imageUrl"
-  >;
-
-type ProductUpdatePatch =
-  Partial<
-    EditableProductFields
-  >;
-
-type UpdateProductCommand = {
-  productId: Product["id"];
-} & ProductUpdatePatch;
-
-const updateTitle:
-  UpdateProductCommand = {
-    productId: 1,
-    title:
-      "Игровая клавиатура",
-  };
-
-const updatePrice:
-  UpdateProductCommand = {
-    productId: 1,
-    price: 6900,
-  };
-
-const updateSeveralFields:
-  UpdateProductCommand = {
-    productId: 1,
-    title:
-      "Компактная клавиатура",
-    description:
-      "Клавиатура без цифрового блока",
-    price: 7100,
-    category: "electronics",
-    imageUrl:
-      "/images/compact-keyboard.jpg",
-  };
-
-type CompleteProduct =
-  Required<Product>;
-
-const completeProduct:
-  CompleteProduct = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    costPrice: 4800,
-    status: "published",
-    category: "electronics",
-    imageUrl:
-      "/images/keyboard.jpg",
-    createdAt: new Date(),
-};
-
-type ProductWithUndefinedImage = {
-  imageUrl?:
-    string | undefined;
-};
-
-type CompleteImage =
-  Required<
-    ProductWithUndefinedImage
-  >;
-
-const completeImage:
-  CompleteImage = {
-    imageUrl: undefined,
-  };
-
-type ProductSnapshot =
-  Readonly<Product>;
-
-const productSnapshot:
-  ProductSnapshot = {
-    ...keyboard,
-  };
-
-type ProductStatusFromModel =
-  Product["status"];
-
-const productStatusLabels:
-  Record<
-    ProductStatusFromModel,
-    string
-  > = {
-    draft: "Черновик",
-    published:
-      "Опубликован",
-    archived: "В архиве",
-  };
-
-type ProductCategoryFromModel =
-  Product["category"];
-
-type CategorySetting = {
+export type CreateProductData = {
+  id: number;
   title: string;
-  icon: string;
+  price: number;
+  category: ProductCategory;
+  available: boolean;
 };
 
-type CategorySettings =
-  Record<
-    ProductCategoryFromModel,
-    CategorySetting
-  >;
-
-const categorySettings:
-  CategorySettings = {
-    electronics: {
-      title: "Электроника",
-      icon: "monitor",
-    },
-    clothing: {
-      title: "Одежда",
-      icon: "shirt",
-    },
-    books: {
-      title: "Книги",
-      icon: "book",
-    },
-  };
-
-type VisibleProductStatus =
-  Exclude<
-    ProductStatus,
-    "archived"
-  >;
-
-type FinalProductStatus =
-  Extract<
-    ProductStatus,
-    | "published"
-    | "archived"
-  >;
-
-const visibleStatus:
-  VisibleProductStatus =
-    "published";
-
-const finalStatus:
-  FinalProductStatus =
-    "archived";
-
-type PublishProductCommand = {
-  productId: Product["id"];
-  status: Exclude<
-    Product["status"],
-    "draft"
-  >;
-};
-
-const publishCommand:
-  PublishProductCommand = {
-    productId: 1,
-    status: "published",
-  };
-
-type ProductSearchResult =
-  | Product
-  | null
-  | undefined;
-
-type ExistingProduct =
-  NonNullable<
-    ProductSearchResult
-  >;
-
-const existingProduct:
-  ExistingProduct = keyboard;
-
-function createProduct(
-  command: CreateProductCommand,
+export function createProduct(
+  data: CreateProductData,
 ): Product {
   return {
-    id: Date.now(),
-    title: command.title,
-    description:
-      command.description,
-    price: command.price,
-    costPrice:
-      command.costPrice,
-    status: "draft",
-    category:
-      command.category,
-    imageUrl:
-      command.imageUrl,
-    createdAt: new Date(),
+    id: data.id,
+    title: data.title,
+    price: data.price,
+    category: data.category,
+    available: data.available,
   };
 }
 
-type CreateProductParameters =
-  Parameters<
-    typeof createProduct
-  >;
-
-type CreatedProduct =
-  ReturnType<
-    typeof createProduct
-  >;
-
-const createArguments:
-  CreateProductParameters = [
-    createProductCommand,
-  ];
-
-const createdProduct:
-  CreatedProduct =
-    createProduct(
-      createArguments[0],
-    );
-
-function withLogging<
-  TArguments extends unknown[],
-  TResult,
->(
-  fn: (
-    ...args: TArguments
-  ) => TResult,
-): (
-  ...args: TArguments
-) => TResult {
-  return (
-    ...args: TArguments
-  ): TResult => {
-    console.log(
-      "Аргументы:",
-      args,
-    );
-
-    const result =
-      fn(...args);
-
-    console.log(
-      "Результат:",
-      result,
-    );
-
-    return result;
-  };
+export function validateProductPrice(
+  price: number,
+): boolean {
+  return price > 0;
 }
-
-const loggedCreateProduct =
-  withLogging(createProduct);
-
-const loggedProduct =
-  loggedCreateProduct({
-    title: "Монитор",
-    description:
-      "Монитор с диагональю 27 дюймов",
-    price: 28000,
-    costPrice: 21000,
-    category: "electronics",
-  });
-
-class ProductEntity {
-  constructor(
-    public readonly id: number,
-    public title: string,
-    public price: number,
-    public status:
-      ProductStatus,
-  ) {}
-}
-
-type ProductEntityConstructorParameters =
-  ConstructorParameters<
-    typeof ProductEntity
-  >;
-
-type ProductEntityInstance =
-  InstanceType<
-    typeof ProductEntity
-  >;
-
-const productEntityArguments:
-  ProductEntityConstructorParameters = [
-    1,
-    "Клавиатура",
-    7500,
-    "published",
-  ];
-
-const productEntity:
-  ProductEntityInstance =
-    new ProductEntity(
-      ...productEntityArguments,
-    );
-
-async function loadProducts():
-  Promise<Product[]> {
-  return [
-    keyboard,
-    {
-      id: 2,
-      title: "Учебник",
-      description:
-        "Учебник по TypeScript",
-      price: 1800,
-      costPrice: 900,
-      status: "published",
-      category: "books",
-      createdAt: new Date(),
-    },
-  ];
-}
-
-type LoadProductsReturn =
-  ReturnType<
-    typeof loadProducts
-  >;
-
-type LoadedProducts =
-  Awaited<
-    ReturnType<
-      typeof loadProducts
-    >
-  >;
-
-type CatalogState = {
-  products: Product[];
-  selectedProduct:
-    Product | null;
-  loading: boolean;
-  error: string | null;
-};
-
-type CatalogStatePatch =
-  Partial<CatalogState>;
-
-function updateCatalogState(
-  current: CatalogState,
-  patch: CatalogStatePatch,
-): CatalogState {
-  return {
-    ...current,
-    ...patch,
-  };
-}
-
-const initialCatalogState:
-  CatalogState = {
-    products: [],
-    selectedProduct: null,
-    loading: false,
-    error: null,
-  };
-
-const loadingCatalogState =
-  updateCatalogState(
-    initialCatalogState,
-    {
-      loading: true,
-    },
-  );
-
-const loadedCatalogState =
-  updateCatalogState(
-    loadingCatalogState,
-    {
-      products: [
-        keyboard,
-      ],
-      loading: false,
-    },
-  );
-
-const selectedCatalogState =
-  updateCatalogState(
-    loadedCatalogState,
-    {
-      selectedProduct:
-        keyboard,
-    },
-  );
-
-async function run():
-  Promise<void> {
-  const products:
-    LoadedProducts =
-      await loadProducts();
-
-  console.log(
-    "Товары:",
-    products,
-  );
-
-  console.log(
-    "Созданный товар:",
-    createdProduct,
-  );
-
-  console.log(
-    "Товар с логированием:",
-    loggedProduct,
-  );
-
-  console.log(
-    "Экземпляр класса:",
-    productEntity,
-  );
-
-  console.log(
-    "Состояние каталога:",
-    selectedCatalogState,
-  );
-
-  console.log(
-    "Подписи статусов:",
-    productStatusLabels,
-  );
-
-  console.log(
-    "Настройки категорий:",
-    categorySettings,
-  );
-}
-
-void run();
-
-// Ожидаемые ошибки TypeScript:
-
-// @ts-expect-error:
-// свойства costPrice нет
-// в PublicProduct
-const wrongPublicProduct:
-  PublicProduct = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    costPrice: 4800,
-    status: "published",
-    category: "electronics",
-    createdAt: new Date(),
-  };
-
-// @ts-expect-error:
-// свойство status нельзя
-// изменять этой командой
-const wrongUpdate:
-  UpdateProductCommand = {
-    productId: 1,
-    status: "archived",
-  };
-
-// @ts-expect-error:
-// imageUrl обязательно
-const incompleteProduct:
-  CompleteProduct = {
-    id: 1,
-    title: "Клавиатура",
-    description:
-      "Механическая клавиатура",
-    price: 7500,
-    costPrice: 4800,
-    status: "published",
-    category: "electronics",
-    createdAt: new Date(),
-  };
-
-// @ts-expect-error:
-// свойства снимка доступны
-// только для чтения
-productSnapshot.price = 8000;
-
-// @ts-expect-error:
-// archived исключён
-const wrongVisibleStatus:
-  VisibleProductStatus =
-    "archived";
-
-// @ts-expect-error:
-// draft исключён
-const wrongPublishCommand:
-  PublishProductCommand = {
-    productId: 1,
-    status: "draft",
-  };
-
-// @ts-expect-error:
-// null удалён
-const missingProduct:
-  ExistingProduct = null;
 ```
 
+## `src/domain/order.ts`
+
+```ts
+import {
+  type Product,
+} from "./product.js";
+
+export type OrderItem = {
+  product: Product;
+  quantity: number;
+};
+
+export type Order = {
+  readonly id: string;
+  items: OrderItem[];
+  createdAt: Date;
+};
+
+export function createOrder(
+  id: string,
+  items: OrderItem[],
+): Order {
+  return {
+    id,
+    items,
+    createdAt: new Date(),
+  };
+}
+```
+
+## `src/services/product-service.ts`
+
+```ts
+import {
+  type Product,
+} from "../domain/product.js";
+
+export default class ProductService {
+  constructor(
+    private readonly products:
+      Product[],
+  ) {}
+
+  getAll(): Product[] {
+    return this.products;
+  }
+
+  findById(
+    id: Product["id"],
+  ): Product | undefined {
+    return this.products.find(
+      (product) =>
+        product.id === id,
+    );
+  }
+
+  getAvailable(): Product[] {
+    return this.products.filter(
+      (product) =>
+        product.available,
+    );
+  }
+}
+```
+
+## `src/services/order-service.ts`
+
+```ts
+import {
+  type Order,
+} from "../domain/order.js";
+
+export class OrderService {
+  calculateTotal(
+    order: Order,
+  ): number {
+    return order.items.reduce(
+      (total, item) =>
+        total +
+        item.product.price *
+          item.quantity,
+      0,
+    );
+  }
+}
+```
+
+## `src/index.ts`
+
+```ts
+export {
+  createProduct,
+  validateProductPrice,
+} from "./domain/product.js";
+
+export type {
+  CreateProductData,
+  Product,
+  ProductCategory,
+} from "./domain/product.js";
+
+export {
+  createOrder,
+} from "./domain/order.js";
+
+export type {
+  Order,
+  OrderItem,
+} from "./domain/order.js";
+
+export {
+  default as ProductService,
+} from "./services/product-service.js";
+
+export {
+  OrderService,
+} from "./services/order-service.js";
+```
+
+## `types/environment.d.ts`
+
+```ts
+declare const APP_VERSION:
+  string;
+```
+
+## `src/app.ts`
+
+```ts
+import {
+  chunk,
+} from "lodash";
+
+import {
+  createOrder,
+  createProduct,
+  OrderService,
+  ProductService,
+  validateProductPrice,
+  type OrderItem,
+  type Product,
+} from "./index.js";
+
+const keyboard: Product =
+  createProduct({
+    id: 1,
+    title: "Клавиатура",
+    price: 7500,
+    category: "electronics",
+    available: true,
+  });
+
+const mouse: Product =
+  createProduct({
+    id: 2,
+    title: "Мышь",
+    price: 3200,
+    category: "electronics",
+    available: true,
+  });
+
+const book: Product =
+  createProduct({
+    id: 3,
+    title:
+      "Изучаем TypeScript",
+    price: 1800,
+    category: "books",
+    available: true,
+  });
+
+const tshirt: Product =
+  createProduct({
+    id: 4,
+    title:
+      "Футболка TypeScript",
+    price: 2400,
+    category: "clothing",
+    available: false,
+  });
+
+const products: Product[] = [
+  keyboard,
+  mouse,
+  book,
+  tshirt,
+];
+
+const productService =
+  new ProductService(products);
+
+console.log(
+  "Все товары:",
+  productService.getAll(),
+);
+
+console.log(
+  "Товар с id 2:",
+  productService.findById(2),
+);
+
+console.log(
+  "Доступные товары:",
+  productService.getAvailable(),
+);
+
+const items: OrderItem[] = [
+  {
+    product: keyboard,
+    quantity: 1,
+  },
+  {
+    product: mouse,
+    quantity: 2,
+  },
+  {
+    product: book,
+    quantity: 3,
+  },
+];
+
+const order = createOrder(
+  "order-001",
+  items,
+);
+
+const orderService =
+  new OrderService();
+
+const total =
+  orderService.calculateTotal(
+    order,
+  );
+
+console.log(
+  "Заказ:",
+  order,
+);
+
+console.log(
+  "Итоговая стоимость:",
+  total,
+);
+
+const productGroups =
+  chunk(products, 2);
+
+console.log(
+  "Группы товаров:",
+  productGroups,
+);
+
+const numbers = [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+];
+
+const numberGroups =
+  chunk(numbers, 3);
+
+const checkedNumberGroups:
+  number[][] = numberGroups;
+
+console.log(
+  "Группы чисел:",
+  checkedNumberGroups,
+);
+
+console.log(
+  "Цена корректна:",
+  validateProductPrice(
+    keyboard.price,
+  ),
+);
+
+// Ошибка TypeScript:
+// второй аргумент должен
+// иметь тип number.
+//
+// chunk(numbers, "3");
+
+// APP_VERSION объявлена
+// через declare, но реального
+// значения во время выполнения нет.
+//
+// console.log(APP_VERSION);
+```
+
+## `tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "types/**/*.d.ts"
+  ]
+}
+```
+
+## Команды запуска
+
+Установка зависимостей:
+
+```bash
+npm install lodash
+```
+
+```bash
+npm install -D typescript tsx @types/lodash
+```
+
+Запуск TypeScript-кода:
+
+```bash
+npx tsx src/app.ts
+```
+
+Компиляция и генерация деклараций:
+
+```bash
+npx tsc
+```
+
+Запуск скомпилированного JavaScript:
+
+```bash
+node dist/app.js
+```
+
+## Пример результата
+
+```text
+Все товары: [
+  {
+    id: 1,
+    title: "Клавиатура",
+    price: 7500,
+    category: "electronics",
+    available: true
+  },
+  ...
+]
+
+Товар с id 2: {
+  id: 2,
+  title: "Мышь",
+  price: 3200,
+  category: "electronics",
+  available: true
+}
+
+Доступные товары: [
+  "Клавиатура",
+  "Мышь",
+  "Изучаем TypeScript"
+]
+
+Итоговая стоимость: 19300
+
+Группы чисел: [
+  [1, 2, 3],
+  [4, 5, 6]
+]
+
+Цена корректна: true
+```

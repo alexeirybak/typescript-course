@@ -1,30 +1,21 @@
-type User = {
-  readonly id: number;
-  name: string;
-  email: string;
-  role: "admin" | "editor" | "viewer";
-  avatarUrl?: string;
-  readonly createdAt: Date;
-};
+// import { calculateDiscountedPrice } from "./product.js";
 
-type PartialUser = Partial<User>;
+// import type { Product } from "./product.js";
 
-type MyPartial<T> = {
-  [K in keyof T]?: T[K];
-};
+// import settings from "./config.js"
 
-const user: User = {
-  id: 1,
-  name: "Алексей",
-  email: "alex@example.com",
-  role: "admin",
-  createdAt: new Date(),
-};
+// const product: Product = {
+//   id: 1,
+//   title: "Клавиатура",
+//   price: 7500,
+// };
 
-const partialUser1: PartialUser = {};
+// console.log(calculateDiscountedPrice(product, 10));
 
-const partialUser: PartialUser = {
-  name: "Алексей",
-};
+export { createMoney, addMoney } from "./domain/money.js";
 
-// const user: User = partialUser;
+export type { Money } from "./domain/money.js";
+
+export type { Product } from "./domain/product.js";
+
+// export * from "./domain/money.js";
