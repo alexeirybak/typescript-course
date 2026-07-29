@@ -12,6 +12,8 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
     "noImplicitReturns": false,
+    "declaration": true,
+    "declarationMap": true
   },
   "include": ["src", "src/index6.ts"]
 }
