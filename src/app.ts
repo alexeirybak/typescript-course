@@ -1,27 +1,84 @@
-// import { addMoney, createMoney, type Money } from "./domain/money.js";
+const API_URL = "https://jsonplaceholder.typicode.com";
 
-// import { type Product } from "./domain/product.js";
-import { chunk } from "lodash";
-
-import { someFunction } from "some-library";
-
-import { addMoney, createMoney, type Money, type Product } from "./index.js";
-
-const keyboard: Product = {
-  id: 1,
-  title: "Клавиатура",
-  price: createMoney(7500.456),
+type PostDto = {
+  userId: number;
+  id: number;
+  title: string;
+  body: string;
 };
 
-const delivery: Money = createMoney(500.257);
+type UserDto = {
+  id: number;
+  name: string;
+  email: string;
+};
 
-const total = addMoney(keyboard.price, delivery);
+class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
-console.log(keyboard);
-console.log(total);
+// const error = new ApiError( 404, "Публикация не найдена", );
 
-chunk(["a", "b", "c", "d"], 2);
+async function createApiError(response: Response): Promise<ApiError> {
+  const text = await response.text();
 
-const result = someFunction("Hello");
+  let details: unknown;
 
-console.log(result);
+  if (text !== "") {
+    try {
+      details = JSON.parse(text);
+    } catch {
+      details = text;
+    }
+  }
+
+  return new ApiError(
+    response.status,
+    `Запрос завершился с HTTP ${response.status}`,
+    details,
+  );
+}
+
+async function ensureSuccess(response: Response): Promise<Response> {
+  if (!response.ok) {
+    throw await createApiError(response);
+  }
+
+  return response;
+}
+
+async function request<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`);
+
+  await ensureSuccess(response);
+
+  return response.json() as Promise<T>;
+}
+
+async function fetchPost(id: number): Promise<PostDto> {
+  return request<PostDto>(`/posts/${id}`);
+}
+
+async function fetchUser(id: number): Promise<UserDto> {
+  return request<UserDto>(`/users/${id}`);
+}
+
+try {
+  const post = await fetchPost(1);
+  console.log(post);
+} catch (error: unknown) {
+  if (error instanceof ApiError) {
+    console.error(`HTTP-ошибка ${error.status}`, error.details);
+  } else if (error instanceof Error) {
+    console.error(error.message);
+  } else {
+    console.error("Неизвестная ошибка", error);
+  }
+}

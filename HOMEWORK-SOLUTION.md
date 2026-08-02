@@ -1,2096 +1,433 @@
-Оформление и уровень детализации сохранены по образцу из прикреплённого решения. 
+# Урок 14. Асинхронность и API
 
-# Домашнее задание. Решение
+## Решение домашнего задания
 
-## Контрольные вопросы
+### Ответы на контрольные вопросы
 
-### 1. Чем именованный экспорт отличается от `default export`?
+#### 1. Почему `async`-функция всегда возвращает `Promise`, даже если внутри возвращается обычное значение?
 
-Именованный экспорт позволяет экспортировать из одного модуля несколько сущностей под их собственными именами.
-
-```ts
-export type Product = {
-  id: number;
-  title: string;
-};
-
-export function createProduct(
-  id: number,
-  title: string,
-): Product {
-  return {
-    id,
-    title,
-  };
-}
-```
-
-При импорте необходимо использовать те же имена:
-
-```ts
-import {
-  createProduct,
-  type Product,
-} from "./product.js";
-```
-
-Переименовать именованный импорт можно с помощью `as`:
-
-```ts
-import {
-  createProduct as makeProduct,
-} from "./product.js";
-```
-
-`default export` экспортирует одну основную сущность модуля.
-
-```ts
-export default class ProductService {
-  getAll(): string[] {
-    return [];
-  }
-}
-```
-
-При импорте имя можно выбрать самостоятельно:
-
-```ts
-import ProductService
-  from "./product-service.js";
-```
-
-Можно использовать другое имя:
-
-```ts
-import StoreProductService
-  from "./product-service.js";
-```
-
-Основное отличие:
-
-* именованных экспортов в одном модуле может быть несколько;
-* `default export` в одном модуле может быть только один;
-* имя именованного импорта должно совпадать с экспортом;
-* имя `default`-импорта выбирает импортирующий код.
-
----
-
-### 2. Как импортировать сущность, экспортированную через `default export`?
-
-Рассмотрим файл:
-
-```text
-src/services/product-service.ts
-```
-
-В нём класс экспортируется по умолчанию:
-
-```ts
-export default class ProductService {
-  getAll(): string[] {
-    return [];
-  }
-}
-```
-
-Импорт выполняется без фигурных скобок:
-
-```ts
-import ProductService
-  from "./services/product-service.js";
-```
-
-Имя при импорте может отличаться:
-
-```ts
-import StoreProductService
-  from "./services/product-service.js";
-```
-
-Оба варианта импортируют один и тот же класс.
-
-Следующая запись неправильная:
-
-```ts
-// Ошибка TypeScript:
-// import {
-//   ProductService,
-// } from "./services/product-service.js";
-```
-
-Фигурные скобки используются для именованных экспортов, а не для `default export`.
-
----
-
-### 3. Для чего в проекте создают публичную точку входа `index.ts`?
-
-Публичная точка входа объединяет экспортируемые сущности библиотеки в одном модуле.
-
-Без `index.ts` внешний код вынужден знать внутреннюю структуру проекта:
-
-```ts
-import {
-  createProduct,
-} from "./domain/product.js";
-
-import {
-  createOrder,
-} from "./domain/order.js";
-
-import ProductService
-  from "./services/product-service.js";
-
-import {
-  OrderService,
-} from "./services/order-service.js";
-```
-
-Создадим файл:
-
-```text
-src/index.ts
-```
-
-В нём переэкспортируем публичные сущности:
-
-```ts
-export {
-  createProduct,
-} from "./domain/product.js";
-
-export type {
-  Product,
-} from "./domain/product.js";
-
-export {
-  createOrder,
-} from "./domain/order.js";
-
-export type {
-  Order,
-  OrderItem,
-} from "./domain/order.js";
-
-export {
-  default as ProductService,
-} from "./services/product-service.js";
-
-export {
-  OrderService,
-} from "./services/order-service.js";
-```
-
-После этого внешний код использует один импорт:
-
-```ts
-import {
-  createOrder,
-  createProduct,
-  OrderService,
-  ProductService,
-  type OrderItem,
-  type Product,
-} from "./index.js";
-```
-
-`index.ts` определяет публичный API библиотеки.
-
----
-
-### 4. Почему внешнему коду лучше импортировать сущности из `index.ts`, а не из внутренних файлов библиотеки?
-
-Импорт из внутренних файлов связывает внешний код со структурой проекта.
+Ключевое слово `async` автоматически оборачивает возвращаемое значение в `Promise`.
 
 Например:
 
 ```ts
-import {
-  createProduct,
-} from "./domain/product.js";
-```
-
-Если файл переместить:
-
-```text
-src/domain/product.ts
-```
-
-в:
-
-```text
-src/models/product.ts
-```
-
-все внешние импорты придётся изменить.
-
-При использовании публичной точки входа внешний код продолжает импортировать:
-
-```ts
-import {
-  createProduct,
-} from "./index.js";
-```
-
-Изменить нужно только переэкспорт внутри `index.ts`.
-
-Кроме того, публичная точка входа позволяет скрыть внутренние сущности.
-
-Например, функция экспортируется из внутреннего файла:
-
-```ts
-export function validateProductPrice(
-  price: number,
-): boolean {
-  return price > 0;
+async function getNumber(): Promise<number> {
+  return 42;
 }
 ```
 
-Но если её не переэкспортировать из `index.ts`, она не станет частью публичного API библиотеки.
+Хотя внутри функции возвращается обычное число:
 
-Таким образом, `index.ts`:
+```ts
+return 42;
+```
 
-* упрощает импорты;
-* скрывает внутреннюю структуру;
-* уменьшает связанность;
-* определяет публичный API;
-* позволяет менять внутренние файлы без изменения внешнего кода.
+результатом вызова будет:
+
+```ts
+Promise<number>
+```
+
+Получить само число можно при помощи `await`:
+
+```ts
+const number = await getNumber();
+```
+
+Если внутри `async`-функции возникает исключение, возвращённый `Promise` переходит в отклонённое состояние.
 
 ---
 
-### 5. Для чего нужны файлы деклараций `.d.ts`?
+#### 2. Почему переменная `error` в блоке `catch` имеет тип `unknown`, а не `Error`?
 
-Файлы `.d.ts` описывают типы и публичный API TypeScript- или JavaScript-кода.
-
-Рассмотрим функцию:
-
-```ts
-export function createProduct(
-  id: number,
-  title: string,
-): Product {
-  return {
-    id,
-    title,
-  };
-}
-```
-
-После генерации декларации TypeScript создаст примерно такой файл:
-
-```ts
-export declare function createProduct(
-  id: number,
-  title: string,
-): Product;
-```
-
-В декларации сохраняются:
-
-* параметры;
-* типы параметров;
-* возвращаемый тип;
-* экспортируемые типы;
-* классы;
-* интерфейсы;
-* публичные свойства и методы.
-
-Реализация функции в `.d.ts` отсутствует.
-
-Файлы деклараций нужны, чтобы другой TypeScript-проект мог:
-
-* проверять правильность вызовов;
-* получать автодополнение;
-* видеть документацию типов;
-* обнаруживать ошибки;
-* использовать библиотеку без доступа к её исходному TypeScript-коду.
-
----
-
-### 6. Чем файл `.d.ts` отличается от обычного файла `.ts`?
-
-Обычный файл `.ts` может содержать типы и исполняемый код.
-
-```ts
-export function add(
-  first: number,
-  second: number,
-): number {
-  return first + second;
-}
-```
-
-После компиляции из него будет создан JavaScript:
-
-```js
-export function add(
-  first,
-  second,
-) {
-  return first + second;
-}
-```
-
-Файл `.d.ts` содержит только объявления:
-
-```ts
-export declare function add(
-  first: number,
-  second: number,
-): number;
-```
-
-В нём нет тела функции.
-
-Главное отличие:
-
-* `.ts` может содержать реализацию;
-* `.d.ts` описывает существующую реализацию;
-* `.ts` компилируется в JavaScript;
-* `.d.ts` не создаёт исполняемый код.
-
----
-
-### 7. Какие настройки `tsconfig.json` включают генерацию деклараций и карт деклараций?
-
-Генерацию файлов `.d.ts` включает параметр:
-
-```json
-"declaration": true
-```
-
-Генерацию карт деклараций включает:
-
-```json
-"declarationMap": true
-```
-
-Пример:
-
-```json
-{
-  "compilerOptions": {
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "./dist"
-  }
-}
-```
-
-После выполнения:
-
-```bash
-npx tsc
-```
-
-TypeScript создаст:
-
-```text
-product.js
-product.d.ts
-product.d.ts.map
-```
-
-`declarationMap` связывает декларацию с исходным TypeScript-файлом.
-
-Это позволяет редактору переходить от использования библиотечного типа к исходному коду, если исходники доступны.
-
----
-
-### 8. Что означает ключевое слово `declare`?
-
-Ключевое слово `declare` сообщает TypeScript, что некоторая сущность существует, но её реализация находится за пределами текущего TypeScript-файла.
+В JavaScript через `throw` можно выбросить значение любого типа.
 
 Например:
 
 ```ts
-declare const APP_VERSION: string;
+throw new Error("Ошибка");
 ```
-
-После такого объявления TypeScript разрешает использовать переменную:
 
 ```ts
-const version: string =
-  APP_VERSION;
+throw "Ошибка";
 ```
-
-Компилятор знает, что `APP_VERSION` имеет тип `string`.
-
-Однако `declare` не создаёт переменную.
-
-Реальное значение должно быть предоставлено другим кодом:
-
-* JavaScript-файлом;
-* средой выполнения;
-* браузером;
-* сборщиком;
-* сторонней библиотекой.
-
-`declare` описывает существующий API, но не реализует его.
-
----
-
-### 9. Почему объявление через `declare` не создаёт JavaScript-код?
-
-Задача `declare` — передать информацию компилятору типов.
-
-Рассмотрим объявление:
 
 ```ts
-declare const APP_VERSION: string;
+throw 404;
 ```
-
-TypeScript использует его только во время проверки программы.
-
-В итоговый JavaScript это объявление не попадает.
-
-Если выполнить:
 
 ```ts
-console.log(APP_VERSION);
+throw null;
 ```
 
-а реальное значение нигде не создано, во время запуска возникнет ошибка:
+Поэтому TypeScript не может гарантировать, что в `catch` попадёт именно объект `Error`.
 
-```text
-ReferenceError: APP_VERSION is not defined
-```
-
-TypeScript не сообщает об ошибке, потому что декларация обещает компилятору существование переменной.
-
-Но среда выполнения ничего не знает о TypeScript-декларациях.
-
-Следовательно:
-
-* `declare` влияет на проверку типов;
-* `declare` не создаёт значение;
-* реализация должна существовать отдельно;
-* неправильная декларация может скрыть ошибку выполнения.
-
----
-
-### 10. Откуда TypeScript получает типы для JavaScript-библиотеки `lodash`?
-
-Библиотека `lodash` написана на JavaScript.
-
-Её исполняемый код устанавливается командой:
-
-```bash
-npm install lodash
-```
-
-Типы для TypeScript устанавливаются отдельным пакетом:
-
-```bash
-npm install -D @types/lodash
-```
-
-После установки декларации находятся в папке:
-
-```text
-node_modules/
-    @types/
-        lodash/
-```
-
-Внутри находятся файлы `.d.ts`, которые описывают функции библиотеки.
-
-Например, благодаря декларациям TypeScript понимает вызов:
+Безопасный тип переменной — `unknown`:
 
 ```ts
-import {
-  chunk,
-} from "lodash";
-
-const groups =
-  chunk([1, 2, 3, 4], 2);
-```
-
-Тип результата:
-
-```ts
-number[][]
-```
-
-Неправильный аргумент вызывает ошибку:
-
-```ts
-// Ошибка TypeScript:
-// chunk([1, 2, 3], "2");
-```
-
-Таким образом:
-
-* пакет `lodash` содержит реализацию;
-* пакет `@types/lodash` содержит декларации;
-* TypeScript объединяет реализацию библиотеки с информацией о её типах.
-
----
-
-# Практическое задание
-
-## Задание 1. Структура проекта
-
-Создадим структуру:
-
-```text
-typescript-course/
-    src/
-        app.ts
-        index.ts
-        domain/
-            product.ts
-            order.ts
-        services/
-            product-service.ts
-            order-service.ts
-    types/
-        environment.d.ts
-    package.json
-    tsconfig.json
-```
-
-Установим зависимости:
-
-```bash
-npm install lodash
-```
-
-```bash
-npm install -D typescript tsx @types/lodash
-```
-
----
-
-## Задание 2. Модель товара
-
-Создадим файл:
-
-```text
-src/domain/product.ts
-```
-
-Опишем категорию товара:
-
-```ts
-export type ProductCategory =
-  | "electronics"
-  | "clothing"
-  | "books";
-```
-
-Теперь создадим модель:
-
-```ts
-export type Product = {
-  readonly id: number;
-  title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
-};
-```
-
-Создадим отдельный тип данных для функции:
-
-```ts
-export type CreateProductData = {
-  id: number;
-  title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
-};
-```
-
-Реализуем функцию:
-
-```ts
-export function createProduct(
-  data: CreateProductData,
-): Product {
-  return {
-    id: data.id,
-    title: data.title,
-    price: data.price,
-    category: data.category,
-    available: data.available,
-  };
+catch (error: unknown) {
+  // Тип значения пока неизвестен
 }
 ```
 
-Добавим вспомогательную функцию:
+Перед использованием ошибки необходимо сузить её тип:
 
 ```ts
-export function validateProductPrice(
-  price: number,
-): boolean {
-  return price > 0;
+if (error instanceof Error) {
+  console.error(error.message);
 }
 ```
 
-Пока не будем добавлять её в публичную точку входа.
-
-Полный файл:
-
-```ts
-export type ProductCategory =
-  | "electronics"
-  | "clothing"
-  | "books";
-
-export type Product = {
-  readonly id: number;
-  title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
-};
-
-export type CreateProductData = {
-  id: number;
-  title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
-};
-
-export function createProduct(
-  data: CreateProductData,
-): Product {
-  return {
-    id: data.id,
-    title: data.title,
-    price: data.price,
-    category: data.category,
-    available: data.available,
-  };
-}
-
-export function validateProductPrice(
-  price: number,
-): boolean {
-  return price > 0;
-}
-```
+После проверки `instanceof` TypeScript понимает, что внутри блока `error` имеет тип `Error`.
 
 ---
 
-## Задание 3. Модель заказа
+#### 3. Зачем создавать собственный класс `ApiError`, если уже существует встроенный класс `Error`?
 
-Создадим файл:
-
-```text
-src/domain/order.ts
-```
-
-Импортируем модель товара:
+Стандартный класс `Error` содержит общие свойства ошибки:
 
 ```ts
-import {
-  type Product,
-} from "./product.js";
+name
+message
+stack
 ```
 
-Создадим позицию заказа:
+Но у него нет специальных данных HTTP-ошибки:
 
 ```ts
-export type OrderItem = {
-  product: Product;
-  quantity: number;
-};
+status
+details
 ```
 
-Создадим заказ:
+Собственный класс `ApiError` позволяет хранить HTTP-статус и тело ответа в отдельных типизированных свойствах:
 
 ```ts
-export type Order = {
-  readonly id: string;
-  items: OrderItem[];
-  createdAt: Date;
-};
-```
-
-Реализуем функцию создания заказа:
-
-```ts
-export function createOrder(
-  id: string,
-  items: OrderItem[],
-): Order {
-  return {
-    id,
-    items,
-    createdAt: new Date(),
-  };
-}
-```
-
-Полный файл:
-
-```ts
-import {
-  type Product,
-} from "./product.js";
-
-export type OrderItem = {
-  product: Product;
-  quantity: number;
-};
-
-export type Order = {
-  readonly id: string;
-  items: OrderItem[];
-  createdAt: Date;
-};
-
-export function createOrder(
-  id: string,
-  items: OrderItem[],
-): Order {
-  return {
-    id,
-    items,
-    createdAt: new Date(),
-  };
-}
-```
-
----
-
-## Задание 4. Сервис товаров
-
-Создадим файл:
-
-```text
-src/services/product-service.ts
-```
-
-Импортируем тип товара:
-
-```ts
-import {
-  type Product,
-} from "../domain/product.js";
-```
-
-Создадим класс:
-
-```ts
-export default class ProductService {
+class ApiError extends Error {
   constructor(
-    private readonly products:
-      Product[],
-  ) {}
-
-  getAll(): Product[] {
-    return this.products;
-  }
-
-  findById(
-    id: Product["id"],
-  ): Product | undefined {
-    return this.products.find(
-      (product) =>
-        product.id === id,
-    );
-  }
-
-  getAvailable(): Product[] {
-    return this.products.filter(
-      (product) =>
-        product.available,
-    );
+    public readonly status: number,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
   }
 }
 ```
 
-Метод `getAll` возвращает все товары.
+После проверки:
 
-Метод `findById` возвращает найденный товар или `undefined`.
+```ts
+error instanceof ApiError
+```
 
-Метод `getAvailable` возвращает только доступные товары.
+TypeScript сужает тип ошибки до `ApiError` и разрешает обращаться к свойствам:
+
+```ts
+error.status
+error.message
+error.details
+```
+
+Это позволяет обрабатывать HTTP-ошибку по структурированным данным, не извлекая статус из текста сообщения.
 
 ---
 
-## Задание 5. Использование `default export`
+#### 4. В чём преимущество `Promise.all` по сравнению с последовательным ожиданием нескольких запросов?
 
-Класс экспортируется по умолчанию:
+При последовательном выполнении второй запрос начинается только после завершения первого:
 
 ```ts
-export default class ProductService
+const post = await fetchPost(1);
+const user = await fetchUser(1);
 ```
 
-Поэтому при прямом импорте имя можно выбрать самостоятельно:
+Если запросы не зависят друг от друга, это увеличивает общее время ожидания.
+
+`Promise.all` запускает независимые операции одновременно:
 
 ```ts
-import StoreProductService
-  from "./services/product-service.js";
+const [post, user] = await Promise.all([
+  fetchPost(1),
+  fetchUser(1),
+]);
 ```
 
-Создать экземпляр можно так:
+TypeScript сохраняет тип каждого результата:
 
 ```ts
-const productService =
-  new StoreProductService(
-    products,
+post; // PostDto
+user; // UserDto
+```
+
+Если хотя бы один из переданных `Promise` завершится ошибкой, `Promise.all` также завершится ошибкой.
+
+`Promise.all` следует использовать для операций, которые можно выполнять независимо и для дальнейшей работы нужны все результаты.
+
+---
+
+#### 5. Зачем понадобилась универсальная функция `request<T>`, если уже существуют `fetchPost` и `fetchUser`?
+
+Функции `fetchPost` и `fetchUser` содержали одинаковый код:
+
+```ts
+const response = await fetch(...);
+
+await ensureSuccess(response);
+
+return response.json() as Promise<...>;
+```
+
+Отличались только адрес запроса и тип ответа.
+
+Функция `request<T>` выносит повторяющуюся логику в одно место:
+
+```ts
+async function request<T>(
+  path: string,
+): Promise<T> {
+  const response = await fetch(
+    `${API_URL}${path}`,
   );
-```
 
-Имя `StoreProductService` отсутствует в исходном модуле.
+  await ensureSuccess(response);
 
-Оно выбрано при импорте `default export`.
-
-Позже приложение будет переведено на импорт из `index.ts`.
-
----
-
-## Задание 6. Сервис заказов
-
-Создадим файл:
-
-```text
-src/services/order-service.ts
-```
-
-Импортируем тип заказа:
-
-```ts
-import {
-  type Order,
-} from "../domain/order.js";
-```
-
-Создадим класс:
-
-```ts
-export class OrderService {
-  calculateTotal(
-    order: Order,
-  ): number {
-    return order.items.reduce(
-      (total, item) =>
-        total +
-        item.product.price *
-          item.quantity,
-      0,
-    );
-  }
+  return response.json() as Promise<T>;
 }
 ```
 
-Метод проходит по позициям заказа и вычисляет сумму:
+После этого конкретные функции становятся короче:
 
 ```ts
-item.product.price
-```
-
-умноженную на:
-
-```ts
-item.quantity
-```
-
----
-
-## Задание 7. Публичная точка входа
-
-Создадим файл:
-
-```text
-src/index.ts
-```
-
-Переэкспортируем типы товара:
-
-```ts
-export type {
-  CreateProductData,
-  Product,
-  ProductCategory,
-} from "./domain/product.js";
-```
-
-Переэкспортируем функцию создания товара:
-
-```ts
-export {
-  createProduct,
-} from "./domain/product.js";
-```
-
-Функцию `validateProductPrice` пока не экспортируем.
-
-Переэкспортируем сущности заказа:
-
-```ts
-export type {
-  Order,
-  OrderItem,
-} from "./domain/order.js";
-
-export {
-  createOrder,
-} from "./domain/order.js";
-```
-
-Переэкспортируем `default export` под именем:
-
-```ts
-export {
-  default as ProductService,
-} from "./services/product-service.js";
-```
-
-Переэкспортируем сервис заказов:
-
-```ts
-export {
-  OrderService,
-} from "./services/order-service.js";
-```
-
-Полный файл:
-
-```ts
-export {
-  createProduct,
-} from "./domain/product.js";
-
-export type {
-  CreateProductData,
-  Product,
-  ProductCategory,
-} from "./domain/product.js";
-
-export {
-  createOrder,
-} from "./domain/order.js";
-
-export type {
-  Order,
-  OrderItem,
-} from "./domain/order.js";
-
-export {
-  default as ProductService,
-} from "./services/product-service.js";
-
-export {
-  OrderService,
-} from "./services/order-service.js";
-```
-
----
-
-## Задание 8. Импорт через публичную точку входа
-
-В файле:
-
-```text
-src/app.ts
-```
-
-все сущности импортируем из:
-
-```ts
-"./index.js"
-```
-
-Импорт:
-
-```ts
-import {
-  createOrder,
-  createProduct,
-  OrderService,
-  ProductService,
-  type OrderItem,
-  type Product,
-} from "./index.js";
-```
-
-Теперь приложение не зависит от расположения файлов:
-
-```text
-domain/
-```
-
-и:
-
-```text
-services/
-```
-
-Внешний код знает только о публичной точке входа.
-
----
-
-## Задание 9. Тестовые товары
-
-Создадим товар `keyboard`:
-
-```ts
-const keyboard: Product =
-  createProduct({
-    id: 1,
-    title: "Клавиатура",
-    price: 7500,
-    category: "electronics",
-    available: true,
-  });
-```
-
-Создадим товар `mouse`:
-
-```ts
-const mouse: Product =
-  createProduct({
-    id: 2,
-    title: "Мышь",
-    price: 3200,
-    category: "electronics",
-    available: true,
-  });
-```
-
-Создадим книгу:
-
-```ts
-const book: Product =
-  createProduct({
-    id: 3,
-    title:
-      "Изучаем TypeScript",
-    price: 1800,
-    category: "books",
-    available: true,
-  });
-```
-
-Создадим недоступную футболку:
-
-```ts
-const tshirt: Product =
-  createProduct({
-    id: 4,
-    title:
-      "Футболка TypeScript",
-    price: 2400,
-    category: "clothing",
-    available: false,
-  });
-```
-
-Объединим товары в массив:
-
-```ts
-const products: Product[] = [
-  keyboard,
-  mouse,
-  book,
-  tshirt,
-];
-```
-
----
-
-## Задание 10. Создание заказа
-
-Создадим позиции заказа:
-
-```ts
-const items: OrderItem[] = [
-  {
-    product: keyboard,
-    quantity: 1,
-  },
-  {
-    product: mouse,
-    quantity: 2,
-  },
-  {
-    product: book,
-    quantity: 3,
-  },
-];
-```
-
-Создадим заказ:
-
-```ts
-const order = createOrder(
-  "order-001",
-  items,
-);
-```
-
-Создадим сервис:
-
-```ts
-const orderService =
-  new OrderService();
-```
-
-Вычислим стоимость:
-
-```ts
-const total =
-  orderService.calculateTotal(
-    order,
-  );
-```
-
-Расчёт:
-
-```text
-7500 × 1 = 7500
-3200 × 2 = 6400
-1800 × 3 = 5400
-```
-
-Итог:
-
-```text
-19300
-```
-
-Создадим сервис товаров:
-
-```ts
-const productService =
-  new ProductService(products);
-```
-
-Получим доступные товары:
-
-```ts
-const availableProducts =
-  productService.getAvailable();
-```
-
-Товар `tshirt` в результат не попадёт, потому что:
-
-```ts
-available: false
-```
-
----
-
-## Задание 11. Подключение `lodash`
-
-Установим библиотеку:
-
-```bash
-npm install lodash
-```
-
-Установим декларации:
-
-```bash
-npm install -D @types/lodash
-```
-
-Импортируем функцию:
-
-```ts
-import {
-  chunk,
-} from "lodash";
-```
-
-Разделим товары на группы по два:
-
-```ts
-const productGroups =
-  chunk(products, 2);
-```
-
-Результат имеет тип:
-
-```ts
-Product[][]
-```
-
-При четырёх товарах получится две группы:
-
-```ts
-[
-  [
-    keyboard,
-    mouse,
-  ],
-  [
-    book,
-    tshirt,
-  ],
-]
-```
-
----
-
-## Задание 12. Проверка типизации `lodash`
-
-Создадим массив:
-
-```ts
-const numbers = [
-  1,
-  2,
-  3,
-  4,
-  5,
-  6,
-];
-```
-
-Разделим его на группы:
-
-```ts
-const numberGroups =
-  chunk(numbers, 3);
-```
-
-TypeScript выводит тип:
-
-```ts
-number[][]
-```
-
-Можно проверить его явно:
-
-```ts
-const checkedNumberGroups:
-  number[][] = numberGroups;
-```
-
-Неправильный вызов:
-
-```ts
-// Ошибка TypeScript:
-// chunk(numbers, "3");
-```
-
-Второй параметр должен иметь тип:
-
-```ts
-number
-```
-
-Декларации из `@types/lodash` позволяют TypeScript обнаружить эту ошибку.
-
----
-
-## Задание 13. Настройка генерации деклараций
-
-Файл:
-
-```text
-tsconfig.json
-```
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "strict": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  },
-  "include": [
-    "src/**/*.ts",
-    "types/**/*.d.ts"
-  ]
+async function fetchPost(
+  id: number,
+): Promise<PostDto> {
+  return request<PostDto>(`/posts/${id}`);
 }
 ```
 
-Параметр:
-
-```json
-"declaration": true
+```ts
+async function fetchUser(
+  id: number,
+): Promise<UserDto> {
+  return request<UserDto>(`/users/${id}`);
+}
 ```
 
-создаёт `.d.ts`.
-
-Параметр:
-
-```json
-"declarationMap": true
-```
-
-создаёт `.d.ts.map`.
-
-Папка `types` добавлена в `include`, чтобы TypeScript видел пользовательские декларации.
+Функция `request<T>` выполняет общий HTTP-запрос, а `fetchPost` и `fetchUser` описывают конкретные операции API.
 
 ---
 
-## Задание 14. Генерация деклараций
+## Практическое задание
 
-Запустим компилятор:
-
-```bash
-npx tsc
-```
-
-После компиляции получится структура:
-
-```text
-dist/
-    app.js
-    app.js.map
-    app.d.ts
-    app.d.ts.map
-    index.js
-    index.js.map
-    index.d.ts
-    index.d.ts.map
-    domain/
-        product.js
-        product.js.map
-        product.d.ts
-        product.d.ts.map
-        order.js
-        order.js.map
-        order.d.ts
-        order.d.ts.map
-    services/
-        product-service.js
-        product-service.js.map
-        product-service.d.ts
-        product-service.d.ts.map
-        order-service.js
-        order-service.js.map
-        order-service.d.ts
-        order-service.d.ts.map
-```
-
-Точный набор файлов зависит от настроек `sourceMap` и содержимого проекта.
-
----
-
-## Задание 15. Изучение созданных `.d.ts`
-
-Файл:
-
-```text
-dist/index.d.ts
-```
-
-будет содержать переэкспорты:
+### 1. Модель комментария
 
 ```ts
-export {
-  createProduct,
-} from "./domain/product.js";
-
-export type {
-  CreateProductData,
-  Product,
-  ProductCategory,
-} from "./domain/product.js";
-
-export {
-  createOrder,
-} from "./domain/order.js";
-
-export type {
-  Order,
-  OrderItem,
-} from "./domain/order.js";
-
-export {
-  default as ProductService,
-} from "./services/product-service.js";
-
-export {
-  OrderService,
-} from "./services/order-service.js";
-```
-
-Файл:
-
-```text
-dist/domain/product.d.ts
-```
-
-будет выглядеть примерно так:
-
-```ts
-export type ProductCategory =
-  | "electronics"
-  | "clothing"
-  | "books";
-
-export type Product = {
-  readonly id: number;
-  title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
+type CommentDto = {
+  postId: number;
+  id: number;
+  name: string;
+  email: string;
+  body: string;
 };
+```
 
-export type CreateProductData = {
+Тип `CommentDto` описывает данные комментария, которые возвращает JSONPlaceholder.
+
+---
+
+### 2. Функция получения комментария
+
+```ts
+async function fetchComment(
+  id: number,
+): Promise<CommentDto> {
+  return request<CommentDto>(
+    `/comments/${id}`,
+  );
+}
+```
+
+Функция передаёт в `request` путь к комментарию и указывает ожидаемый тип ответа:
+
+```ts
+CommentDto
+```
+
+Поэтому возвращаемый тип функции:
+
+```ts
+Promise<CommentDto>
+```
+
+---
+
+### 3. Параллельное выполнение запросов
+
+```ts
+const [post, user, comment] =
+  await Promise.all([
+    fetchPost(1),
+    fetchUser(1),
+    fetchComment(1),
+  ]);
+
+console.log(post.title);
+console.log(user.name);
+console.log(comment.email);
+```
+
+Все три запроса запускаются параллельно.
+
+После выполнения `Promise.all`:
+
+```ts
+post
+```
+
+имеет тип `PostDto`,
+
+```ts
+user
+```
+
+имеет тип `UserDto`,
+
+а:
+
+```ts
+comment
+```
+
+имеет тип `CommentDto`.
+
+---
+
+### 4. Полный код решения
+
+```ts
+const API_URL =
+  "https://jsonplaceholder.typicode.com";
+
+type PostDto = {
+  userId: number;
   id: number;
   title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
+  body: string;
 };
 
-export declare function createProduct(
-  data: CreateProductData,
-): Product;
-
-export declare function validateProductPrice(
-  price: number,
-): boolean;
-```
-
-Ответы на вопросы:
-
-```ts
-// 1. Есть ли в .d.ts реализация
-// функции createProduct?
-//
-// Нет. Сохраняется только сигнатура.
-```
-
-```ts
-// 2. Сохранился ли тип
-// возвращаемого значения?
-//
-// Да. Функция возвращает Product.
-```
-
-```ts
-// 3. Сохранились ли
-// экспортируемые типы?
-//
-// Да. Product, ProductCategory
-// и CreateProductData присутствуют
-// в декларации.
-```
-
-```ts
-// 4. Содержится ли в .d.ts
-// исполняемый JavaScript-код?
-//
-// Нет. Файл содержит только
-// описание публичного API.
-```
-
----
-
-## Задание 16. Проверка публичной точки входа
-
-Функция объявлена и экспортирована в:
-
-```text
-src/domain/product.ts
-```
-
-```ts
-export function validateProductPrice(
-  price: number,
-): boolean {
-  return price > 0;
-}
-```
-
-Но в `src/index.ts` её пока нет.
-
-Поэтому импорт из публичной точки входа вызовет ошибку:
-
-```ts
-// Ошибка TypeScript:
-// import {
-//   validateProductPrice,
-// } from "./index.js";
-```
-
-Добавим функцию в `src/index.ts`:
-
-```ts
-export {
-  createProduct,
-  validateProductPrice,
-} from "./domain/product.js";
-```
-
-Теперь импорт разрешён:
-
-```ts
-import {
-  validateProductPrice,
-} from "./index.js";
-```
-
-Использование:
-
-```ts
-console.log(
-  validateProductPrice(7500),
-);
-```
-
-Результат:
-
-```text
-true
-```
-
-Это показывает, что экспорт из внутреннего файла и публикация через `index.ts` — разные действия.
-
----
-
-## Задание 17. Использование `declare`
-
-Создадим файл:
-
-```text
-types/environment.d.ts
-```
-
-Добавим объявление:
-
-```ts
-declare const APP_VERSION:
-  string;
-```
-
-Теперь в `src/app.ts` TypeScript понимает:
-
-```ts
-APP_VERSION
-```
-
-Например:
-
-```ts
-const version: string =
-  APP_VERSION;
-```
-
-TypeScript не сообщает об ошибке типа.
-
-Ответ:
-
-```ts
-// Создаёт ли declare реальное
-// значение APP_VERSION
-// во время выполнения?
-//
-// Нет. declare только сообщает
-// TypeScript, что такое значение
-// должно существовать.
-```
-
-Чтобы основной пример запускался, обращение к переменной оставим закомментированным:
-
-```ts
-// console.log(APP_VERSION);
-```
-
----
-
-## Задание 18. Разница между объявлением и реализацией
-
-Временно добавим:
-
-```ts
-console.log(APP_VERSION);
-```
-
-Запустим:
-
-```bash
-npx tsx src/app.ts
-```
-
-Во время выполнения возникнет ошибка:
-
-```text
-ReferenceError:
-APP_VERSION is not defined
-```
-
-Объяснение:
-
-```ts
-// TypeScript не показывал ошибку,
-// потому что файл environment.d.ts
-// объявил глобальную переменную
-// APP_VERSION с типом string.
-```
-
-```ts
-// Ошибка появилась при запуске,
-// потому что среда выполнения
-// не создала реальную переменную.
-```
-
-```ts
-// declare является описанием,
-// а не реализацией.
-```
-
-После проверки строку необходимо закомментировать:
-
-```ts
-// console.log(APP_VERSION);
-```
-
----
-
-## Задание 19. Итоговая проверка
-
-В выполненном проекте:
-
-* `Product` и `Order` находятся в отдельных модулях;
-* типы и функции используют именованные экспорты;
-* `ProductService` использует `default export`;
-* `index.ts` является публичной точкой входа;
-* `app.ts` импортирует сущности библиотеки из `index.ts`;
-* `lodash` установлен вместе с `@types/lodash`;
-* `chunk` сохраняет тип элементов массива;
-* `npx tsc` создаёт `.js` и `.d.ts`;
-* декларации содержат сигнатуры, но не реализацию;
-* `declare` сообщает TypeScript о внешней сущности;
-* `declare` не создаёт значение во время выполнения.
-
----
-
-# Полный код решения
-
-## `src/domain/product.ts`
-
-```ts
-export type ProductCategory =
-  | "electronics"
-  | "clothing"
-  | "books";
-
-export type Product = {
-  readonly id: number;
-  title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
-};
-
-export type CreateProductData = {
+type UserDto = {
   id: number;
-  title: string;
-  price: number;
-  category: ProductCategory;
-  available: boolean;
+  name: string;
+  email: string;
 };
 
-export function createProduct(
-  data: CreateProductData,
-): Product {
-  return {
-    id: data.id,
-    title: data.title,
-    price: data.price,
-    category: data.category,
-    available: data.available,
-  };
-}
-
-export function validateProductPrice(
-  price: number,
-): boolean {
-  return price > 0;
-}
-```
-
-## `src/domain/order.ts`
-
-```ts
-import {
-  type Product,
-} from "./product.js";
-
-export type OrderItem = {
-  product: Product;
-  quantity: number;
+type CommentDto = {
+  postId: number;
+  id: number;
+  name: string;
+  email: string;
+  body: string;
 };
 
-export type Order = {
-  readonly id: string;
-  items: OrderItem[];
-  createdAt: Date;
-};
-
-export function createOrder(
-  id: string,
-  items: OrderItem[],
-): Order {
-  return {
-    id,
-    items,
-    createdAt: new Date(),
-  };
-}
-```
-
-## `src/services/product-service.ts`
-
-```ts
-import {
-  type Product,
-} from "../domain/product.js";
-
-export default class ProductService {
+class ApiError extends Error {
   constructor(
-    private readonly products:
-      Product[],
-  ) {}
-
-  getAll(): Product[] {
-    return this.products;
-  }
-
-  findById(
-    id: Product["id"],
-  ): Product | undefined {
-    return this.products.find(
-      (product) =>
-        product.id === id,
-    );
-  }
-
-  getAvailable(): Product[] {
-    return this.products.filter(
-      (product) =>
-        product.available,
-    );
+    public readonly status: number,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
   }
 }
-```
 
-## `src/services/order-service.ts`
+async function createApiError(
+  response: Response,
+): Promise<ApiError> {
+  const text = await response.text();
 
-```ts
-import {
-  type Order,
-} from "../domain/order.js";
+  let details: unknown;
 
-export class OrderService {
-  calculateTotal(
-    order: Order,
-  ): number {
-    return order.items.reduce(
-      (total, item) =>
-        total +
-        item.product.price *
-          item.quantity,
-      0,
-    );
+  if (text !== "") {
+    try {
+      details = JSON.parse(text);
+    } catch {
+      details = text;
+    }
   }
+
+  return new ApiError(
+    response.status,
+    `Запрос завершился с HTTP ${response.status}`,
+    details,
+  );
 }
-```
 
-## `src/index.ts`
+async function ensureSuccess(
+  response: Response,
+): Promise<Response> {
+  if (!response.ok) {
+    throw await createApiError(response);
+  }
 
-```ts
-export {
-  createProduct,
-  validateProductPrice,
-} from "./domain/product.js";
+  return response;
+}
 
-export type {
-  CreateProductData,
-  Product,
-  ProductCategory,
-} from "./domain/product.js";
-
-export {
-  createOrder,
-} from "./domain/order.js";
-
-export type {
-  Order,
-  OrderItem,
-} from "./domain/order.js";
-
-export {
-  default as ProductService,
-} from "./services/product-service.js";
-
-export {
-  OrderService,
-} from "./services/order-service.js";
-```
-
-## `types/environment.d.ts`
-
-```ts
-declare const APP_VERSION:
-  string;
-```
-
-## `src/app.ts`
-
-```ts
-import {
-  chunk,
-} from "lodash";
-
-import {
-  createOrder,
-  createProduct,
-  OrderService,
-  ProductService,
-  validateProductPrice,
-  type OrderItem,
-  type Product,
-} from "./index.js";
-
-const keyboard: Product =
-  createProduct({
-    id: 1,
-    title: "Клавиатура",
-    price: 7500,
-    category: "electronics",
-    available: true,
-  });
-
-const mouse: Product =
-  createProduct({
-    id: 2,
-    title: "Мышь",
-    price: 3200,
-    category: "electronics",
-    available: true,
-  });
-
-const book: Product =
-  createProduct({
-    id: 3,
-    title:
-      "Изучаем TypeScript",
-    price: 1800,
-    category: "books",
-    available: true,
-  });
-
-const tshirt: Product =
-  createProduct({
-    id: 4,
-    title:
-      "Футболка TypeScript",
-    price: 2400,
-    category: "clothing",
-    available: false,
-  });
-
-const products: Product[] = [
-  keyboard,
-  mouse,
-  book,
-  tshirt,
-];
-
-const productService =
-  new ProductService(products);
-
-console.log(
-  "Все товары:",
-  productService.getAll(),
-);
-
-console.log(
-  "Товар с id 2:",
-  productService.findById(2),
-);
-
-console.log(
-  "Доступные товары:",
-  productService.getAvailable(),
-);
-
-const items: OrderItem[] = [
-  {
-    product: keyboard,
-    quantity: 1,
-  },
-  {
-    product: mouse,
-    quantity: 2,
-  },
-  {
-    product: book,
-    quantity: 3,
-  },
-];
-
-const order = createOrder(
-  "order-001",
-  items,
-);
-
-const orderService =
-  new OrderService();
-
-const total =
-  orderService.calculateTotal(
-    order,
+async function request<T>(
+  path: string,
+): Promise<T> {
+  const response = await fetch(
+    `${API_URL}${path}`,
   );
 
-console.log(
-  "Заказ:",
-  order,
-);
+  await ensureSuccess(response);
 
-console.log(
-  "Итоговая стоимость:",
-  total,
-);
-
-const productGroups =
-  chunk(products, 2);
-
-console.log(
-  "Группы товаров:",
-  productGroups,
-);
-
-const numbers = [
-  1,
-  2,
-  3,
-  4,
-  5,
-  6,
-];
-
-const numberGroups =
-  chunk(numbers, 3);
-
-const checkedNumberGroups:
-  number[][] = numberGroups;
-
-console.log(
-  "Группы чисел:",
-  checkedNumberGroups,
-);
-
-console.log(
-  "Цена корректна:",
-  validateProductPrice(
-    keyboard.price,
-  ),
-);
-
-// Ошибка TypeScript:
-// второй аргумент должен
-// иметь тип number.
-//
-// chunk(numbers, "3");
-
-// APP_VERSION объявлена
-// через declare, но реального
-// значения во время выполнения нет.
-//
-// console.log(APP_VERSION);
-```
-
-## `tsconfig.json`
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "strict": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  },
-  "include": [
-    "src/**/*.ts",
-    "types/**/*.d.ts"
-  ]
-}
-```
-
-## Команды запуска
-
-Установка зависимостей:
-
-```bash
-npm install lodash
-```
-
-```bash
-npm install -D typescript tsx @types/lodash
-```
-
-Запуск TypeScript-кода:
-
-```bash
-npx tsx src/app.ts
-```
-
-Компиляция и генерация деклараций:
-
-```bash
-npx tsc
-```
-
-Запуск скомпилированного JavaScript:
-
-```bash
-node dist/app.js
-```
-
-## Пример результата
-
-```text
-Все товары: [
-  {
-    id: 1,
-    title: "Клавиатура",
-    price: 7500,
-    category: "electronics",
-    available: true
-  },
-  ...
-]
-
-Товар с id 2: {
-  id: 2,
-  title: "Мышь",
-  price: 3200,
-  category: "electronics",
-  available: true
+  return response.json() as Promise<T>;
 }
 
-Доступные товары: [
-  "Клавиатура",
-  "Мышь",
-  "Изучаем TypeScript"
-]
+async function fetchPost(
+  id: number,
+): Promise<PostDto> {
+  return request<PostDto>(`/posts/${id}`);
+}
 
-Итоговая стоимость: 19300
+async function fetchUser(
+  id: number,
+): Promise<UserDto> {
+  return request<UserDto>(`/users/${id}`);
+}
 
-Группы чисел: [
-  [1, 2, 3],
-  [4, 5, 6]
-]
+async function fetchComment(
+  id: number,
+): Promise<CommentDto> {
+  return request<CommentDto>(
+    `/comments/${id}`,
+  );
+}
 
-Цена корректна: true
+try {
+  const [post, user, comment] =
+    await Promise.all([
+      fetchPost(1),
+      fetchUser(1),
+      fetchComment(1),
+    ]);
+
+  console.log(post.title);
+  console.log(user.name);
+  console.log(comment.email);
+} catch (error: unknown) {
+  if (error instanceof ApiError) {
+    console.error(
+      `HTTP-ошибка ${error.status}`,
+      error.details,
+    );
+  } else if (error instanceof Error) {
+    console.error(error.message);
+  } else {
+    console.error(
+      "Неизвестная ошибка",
+      error,
+    );
+  }
+}
 ```
